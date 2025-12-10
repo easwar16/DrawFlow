@@ -1,9 +1,15 @@
-import { userSignupSchema, userSignupType } from "./schemas";
+import {
+  userSigninSchema,
+  userSigninType,
+  userSignupSchema,
+  userSignupType,
+} from "./schemas";
 import { prisma } from "@repo/db-schema/client";
-
+import jwt from "jsonwebtoken";
 import express from "express";
 import dotenv from "dotenv";
 import { errorHandler } from "./lib";
+import id from "zod/v4/locales/id.js";
 dotenv.config();
 const app = express();
 
@@ -36,7 +42,25 @@ app.post("/signup", async (req, res) => {
     return res.status(403).json({ message: "Invalid details" });
   }
 });
-app.post("/signin", async (req, res) => {});
+app.post("/signin", async (req, res) => {
+  const body: userSigninType = req.body;
+  const isValid = userSigninSchema.safeParse(req.body);
+  if (isValid?.success) {
+    const userExists = await prisma.user.findUnique({
+      where: { email: body.email, password: body.password },
+    });
+    if (!userExists?.id) {
+      return res.status(403).json({ message: "User not found" });
+    }
+    const token = jwt.sign(
+      { name: userExists?.name, id: userExists?.id },
+      process.env.JWT_SECRET ?? ""
+    );
+    return res.status(200).json({ token: token });
+  } else {
+    return res.status(403).json({ message: "Invalid details" });
+  }
+});
 
 app.post("/room", async (req, res) => {});
 
