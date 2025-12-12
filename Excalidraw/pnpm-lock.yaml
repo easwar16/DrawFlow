@@ -90,6 +90,9 @@ importers:
 
   apps/websocket:
     dependencies:
+      '@repo/db-schema':
+        specifier: workspace:*
+        version: link:../../packages/db-schema
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config

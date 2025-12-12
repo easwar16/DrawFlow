@@ -8,7 +8,8 @@
     "@types/ws": "^8.18.1",
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.3",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "@repo/db-schema": "workspace:*"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

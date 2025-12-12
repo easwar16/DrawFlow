@@ -8,22 +8,17 @@ interface JwtUserPayload extends JwtPayload {
   name: string;
   id: string;
 }
-declare module "express" {
-  interface Request {
-    userId?: string;
-  }
-}
 export const middleWare = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers["authorization"] ?? "";
-
+  const headerToken = req.headers["authorization"] ?? "";
+  const token = headerToken.split(" ")[1] as string;
   const decoded: JwtUserPayload = jwt.verify(
     token,
     process.env.JWT_SECRET ?? ""
   ) as JwtUserPayload;
-  console.log(decoded);
 
   if (decoded?.id) {
     req.userId = decoded.id;
+    next();
   } else {
     res.status(403).json({ message: "Unauthorized" });
   }
