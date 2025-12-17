@@ -14,7 +14,8 @@ export const userSignupSchema = z.object({
     .string()
     .url("Photo must be a valid URL")
     .min(1, "Photo URL is required")
-    .optional(),
+    .optional()
+    .or(z.literal("")),
 });
 
 export type userSignupType = z.infer<typeof userSignupSchema>;

@@ -21,7 +21,12 @@ dotenv.config({ path: "../../.env" });
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL, // EXACT frontend URL
+    credentials: true,
+  })
+);
 
 app.post("/signup", async (req, res) => {
   const body: userSignupType = req.body;
@@ -67,6 +72,13 @@ app.post("/signin", async (req, res) => {
       { name: userExists?.name, id: userExists?.id },
       process.env.JWT_SECRET ?? ""
     );
+    res.cookie("auth_token", token, {
+      httpOnly: false, // 🔒 JS cannot read
+      secure: false,
+      sameSite: "lax", // important for Next.js
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
     return res.status(200).json({ token: token });
   } else {
     return res.status(403).json({ message: "Invalid details" });

@@ -9,7 +9,9 @@ import {
   Github,
   Sparkles,
   Brush,
+  ArrowLeftIcon,
 } from "lucide-react";
+import Link from "next/link";
 
 export default function LandingPage() {
   return (
@@ -30,31 +32,13 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="hidden md:flex items-center space-x-8">
-            <a
-              href="#features"
-              className="text-gray-300 hover:text-emerald-400 transition-colors duration-300 relative group"
+            <Link
+              href="/auth"
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-pink-500 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105"
             >
-              Features
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-emerald-400 to-pink-400 group-hover:w-full transition-all duration-300"></span>
-            </a>
-            <a
-              href="#about"
-              className="text-gray-300 hover:text-emerald-400 transition-colors duration-300 relative group"
-            >
-              About
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-emerald-400 to-pink-400 group-hover:w-full transition-all duration-300"></span>
-            </a>
-            <a
-              href="#docs"
-              className="text-gray-300 hover:text-emerald-400 transition-colors duration-300 relative group"
-            >
-              Docs
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-emerald-400 to-pink-400 group-hover:w-full transition-all duration-300"></span>
-            </a>
-            <button className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-pink-500 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105">
               <span>Get Started</span>
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
         </div>
       </nav>
