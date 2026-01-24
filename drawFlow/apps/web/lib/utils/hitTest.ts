@@ -11,13 +11,65 @@ export function hitTest(point: Point, shape: Shape): boolean {
     case "line":
     case "arrow":
       return hitLine(point, shape.startPoint, shape.endPoint);
-
+    case "rhombus":
+      return hitRhombus(point, shape);
     case "pencil":
       return hitPencil(point, shape.points);
     default:
       return false;
   }
 }
+
+function hitRhombus(
+  p: Point,
+  shape: {
+    top: Point;
+    right: Point;
+    bottom: Point;
+    left: Point;
+  },
+): boolean {
+  const polygon = [shape.top, shape.right, shape.bottom, shape.left];
+
+  // 🔹 Fast bounding-box reject (performance)
+  const xs = polygon.map((pt) => pt.x);
+  const ys = polygon.map((pt) => pt.y);
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  if (
+    p.x < minX - HIT_TOLERANCE ||
+    p.x > maxX + HIT_TOLERANCE ||
+    p.y < minY - HIT_TOLERANCE ||
+    p.y > maxY + HIT_TOLERANCE
+  ) {
+    return false;
+  }
+
+  return pointInPolygon(p, polygon);
+}
+function pointInPolygon(point: Point, polygon: Point[]): boolean {
+  let inside = false;
+  const { x, y } = point;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i]!.x;
+    const yi = polygon[i]!.y;
+    const xj = polygon[j]!.x;
+    const yj = polygon[j]!.y;
+
+    const intersect =
+      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+
+    if (intersect) inside = !inside;
+  }
+
+  return inside;
+}
+
 function hitRect(p: Point, r: { x: number; y: number; w: number; h: number }) {
   return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
 }

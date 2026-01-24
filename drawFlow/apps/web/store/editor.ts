@@ -9,15 +9,17 @@ type EditorState = {
 
   // interaction
   currentTool: ToolType;
-  selectedShapeId: string | null;
+  selectedShapeIds: string[];
 
   // actions
   setRoomId: (id: number) => void;
   setShapes: (shapes: Shape[]) => void;
   setTool: (tool: ToolType) => void;
 
+  setSelectedShapeIds: (ids: string[]) => void;
+  toggleSelectedShape: (id: string) => void;
+
   addShape: (shape: Shape) => void;
-  setSelectedShape: (id: string | null) => void;
   updateShape: (id: string, updater: (shape: Shape) => Shape) => void;
 };
 
@@ -28,9 +30,18 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   // interaction
   currentTool: "select",
-  selectedShapeId: null,
+  selectedShapeIds: [],
 
   // actions
+
+  setSelectedShapeIds: (ids: string[]) => set({ selectedShapeIds: ids }),
+
+  toggleSelectedShape: (id: string) =>
+    set((state) => ({
+      selectedShapeIds: state.selectedShapeIds.includes(id)
+        ? state.selectedShapeIds.filter((sid) => sid !== id)
+        : [...state.selectedShapeIds, id],
+    })),
   setRoomId: (id) => set({ roomId: id }),
 
   setShapes: (shapes) => set({ shapes }),
@@ -42,12 +53,10 @@ export const useEditorStore = create<EditorState>((set) => ({
       shapes: [...state.shapes, shape],
     })),
 
-  setSelectedShape: (id) => set({ selectedShapeId: id }),
-
   updateShape: (id, updater) =>
     set((state) => ({
       shapes: state.shapes.map((shape) =>
-        shape.id === id ? updater(shape) : shape
+        shape.id === id ? updater(shape) : shape,
       ),
     })),
 }));

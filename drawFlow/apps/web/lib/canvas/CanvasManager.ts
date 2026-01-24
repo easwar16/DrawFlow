@@ -32,6 +32,25 @@ class CanvasManager {
 
   private draftArrow: { startPoint: Point; endPoint: Point } | null = null;
 
+  private selectionRect: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null = null;
+
+  setSelectionRect(
+    rect: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    } | null,
+  ) {
+    this.selectionRect = rect;
+    this.render(useEditorStore.getState().shapes);
+  }
+
   private drawSelection(shape: Shape) {
     this.ctx.save();
     this.ctx.setLineDash([4, 4]);
@@ -39,6 +58,57 @@ class CanvasManager {
 
     const bounds = this.getShapeBounds(shape);
     this.ctx.strokeRect(bounds?.x!, bounds?.y!, bounds?.w!, bounds?.h!);
+
+    this.ctx.restore();
+  }
+
+  private getSelectionBounds(shapes: Shape[], selectedIds: string[]) {
+    const selectedShapes = shapes.filter((s) => selectedIds.includes(s.id));
+
+    if (selectedShapes.length === 0) return null;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const shape of selectedShapes) {
+      const b = this.getShapeBounds(shape);
+      if (!b) continue;
+
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.w);
+      maxY = Math.max(maxY, b.y + b.h);
+    }
+
+    return {
+      x: minX,
+      y: minY,
+      w: maxX - minX,
+      h: maxY - minY,
+    };
+  }
+
+  private drawSelectionBox(bounds: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }) {
+    const padding = 6;
+
+    this.ctx.save();
+    this.ctx.setLineDash([6, 4]);
+    this.ctx.strokeStyle = "#60a5fa";
+    this.ctx.lineWidth = 1;
+
+    this.ctx.strokeRect(
+      bounds.x - padding,
+      bounds.y - padding,
+      bounds.w + padding * 2,
+      bounds.h + padding * 2,
+    );
 
     this.ctx.restore();
   }
@@ -56,6 +126,32 @@ class CanvasManager {
         const h = Math.abs(shape.startPoint.y - shape.endPoint.y);
         return { x, y, w, h };
       }
+      case "rhombus": {
+        const xs = [
+          shape.top.x!,
+          shape.right.x!,
+          shape.bottom.x!,
+          shape.left.x!,
+        ];
+        const ys = [
+          shape.top.y!,
+          shape.right.y!,
+          shape.bottom.y!,
+          shape.left.y!,
+        ];
+
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        const maxX = Math.max(...xs);
+        const maxY = Math.max(...ys);
+
+        return {
+          x: minX,
+          y: minY,
+          w: maxX - minX,
+          h: maxY - minY,
+        };
+      }
 
       case "pencil": {
         const xs = shape.points.map((p) => p.x);
@@ -70,6 +166,9 @@ class CanvasManager {
     }
   }
 
+  clearSelectionRect() {
+    this.selectionRect = null;
+  }
   startDraftArrow(startPoint: Point) {
     this.draftArrow = {
       startPoint,
@@ -92,7 +191,10 @@ class CanvasManager {
       endPoint: startPoint,
     };
   }
-
+  getCurrentSelectionBounds() {
+    const { shapes, selectedShapeIds } = useEditorStore.getState();
+    return this.getSelectionBounds(shapes, selectedShapeIds);
+  }
   setDraftLine(startPoint: Point, endPoint: Point) {
     if (!this.draftLine) return;
     this.draftLine.startPoint = startPoint;
@@ -115,8 +217,9 @@ class CanvasManager {
   }
 
   clearAllDrafts() {
-    this.draftArrow = null;
     this.draftLine = null;
+    this.selectionRect = null;
+    this.draftArrow = null;
     this.draftPencil = null;
     this.draftRect = null;
     this.draftRhom = null;
@@ -151,34 +254,38 @@ class CanvasManager {
     this.render();
   }
   render(shapes: Shape[] = []) {
-    const selectedId = useEditorStore.getState().selectedShapeId;
+    const { selectedShapeIds } = useEditorStore.getState();
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.ctx.save();
-    this.ctx.strokeStyle = "#ffffff";
-    this.ctx.fillStyle = "#ffffff";
+    this.ctx.strokeStyle = "#000000";
+    this.ctx.fillStyle = "#000000";
 
     for (const shape of shapes) {
       this.drawShape(shape);
 
-      if (shape.id === selectedId) {
-        this.drawSelection(shape);
-      }
+      // if (shape.id === selectedId) {
+      //   this.drawSelection(shape);
+      // }
     }
+    const bounds = this.getSelectionBounds(shapes, selectedShapeIds);
 
+    if (bounds) {
+      this.drawSelectionBox(bounds);
+    }
     this.ctx.restore();
 
     if (this.draftRect) {
       this.ctx.save();
 
       this.ctx.setLineDash([6, 4]); // dashed preview
-      this.ctx.strokeStyle = "#ffffff";
+      this.ctx.strokeStyle = "#000000";
 
       this.ctx.strokeRect(
         this.draftRect.x,
         this.draftRect.y,
         this.draftRect.w,
-        this.draftRect.h
+        this.draftRect.h,
       );
 
       this.ctx.restore();
@@ -187,7 +294,7 @@ class CanvasManager {
       this.ctx.save();
 
       this.ctx.setLineDash([6, 4]); // dashed preview
-      this.ctx.strokeStyle = "#ffffff";
+      this.ctx.strokeStyle = "#000000";
 
       this.ctx.beginPath();
       this.ctx.moveTo(this.draftRhom.top.x!, this.draftRhom.top.y!);
@@ -212,7 +319,7 @@ class CanvasManager {
     if (this.draftPencil && this.draftPencil.length > 1) {
       this.ctx.save();
       this.ctx.setLineDash([6, 4]);
-      this.ctx.strokeStyle = "#ffffff";
+      this.ctx.strokeStyle = "#000000";
 
       this.ctx.beginPath();
       this.ctx.moveTo(this.draftPencil[0]?.x!, this.draftPencil[0]?.y!);
@@ -231,7 +338,7 @@ class CanvasManager {
     ) {
       this.ctx.save();
       this.ctx.setLineDash([6, 4]);
-      this.ctx.strokeStyle = "#ffffff";
+      this.ctx.strokeStyle = "#000000";
 
       this.ctx.beginPath();
       this.ctx.moveTo(this.draftLine.startPoint.x, this.draftLine.startPoint.y);
@@ -253,12 +360,12 @@ class CanvasManager {
       const angle = Math.atan2(y2 - y1, x2 - x1);
       this.ctx.save();
       this.ctx.setLineDash([6, 4]);
-      this.ctx.strokeStyle = "#ffffff";
+      this.ctx.strokeStyle = "#000000";
 
       this.ctx.beginPath();
       this.ctx.moveTo(
         this.draftArrow.startPoint.x,
-        this.draftArrow.startPoint.y
+        this.draftArrow.startPoint.y,
       );
       this.ctx.lineTo(this.draftArrow.endPoint.x, this.draftArrow.endPoint.y);
       this.ctx.stroke();
@@ -266,16 +373,30 @@ class CanvasManager {
       this.ctx.moveTo(this.draftArrow.endPoint.x, this.draftArrow.endPoint.y);
       this.ctx.lineTo(
         x2 - headLength * Math.cos(angle - headAngle),
-        y2 - headLength * Math.sin(angle - headAngle)
+        y2 - headLength * Math.sin(angle - headAngle),
       );
       this.ctx.stroke();
       this.ctx.beginPath();
       this.ctx.moveTo(this.draftArrow.endPoint.x, this.draftArrow.endPoint.y);
       this.ctx.lineTo(
         x2 - headLength * Math.cos(angle + headAngle),
-        y2 - headLength * Math.sin(angle + headAngle)
+        y2 - headLength * Math.sin(angle + headAngle),
       );
       this.ctx.stroke();
+      this.ctx.restore();
+    }
+    if (this.selectionRect) {
+      this.ctx.save();
+      this.ctx.setLineDash([6, 4]);
+      this.ctx.strokeStyle = "#60a5fa";
+
+      this.ctx.strokeRect(
+        this.selectionRect.x,
+        this.selectionRect.y,
+        this.selectionRect.w,
+        this.selectionRect.h,
+      );
+
       this.ctx.restore();
     }
   }
@@ -334,14 +455,14 @@ class CanvasManager {
         this.ctx.moveTo(shape.endPoint.x, shape.endPoint.y);
         this.ctx.lineTo(
           x2 - headLength * Math.cos(angle - headAngle),
-          y2 - headLength * Math.sin(angle - headAngle)
+          y2 - headLength * Math.sin(angle - headAngle),
         );
         this.ctx.stroke();
         this.ctx.beginPath();
         this.ctx.moveTo(shape.endPoint.x, shape.endPoint.y);
         this.ctx.lineTo(
           x2 - headLength * Math.cos(angle + headAngle),
-          y2 - headLength * Math.sin(angle + headAngle)
+          y2 - headLength * Math.sin(angle + headAngle),
         );
         this.ctx.stroke();
         break;
