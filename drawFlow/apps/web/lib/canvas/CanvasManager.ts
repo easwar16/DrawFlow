@@ -10,13 +10,53 @@ class CanvasManager {
   private dpr = 1;
   private activeTool: ToolController | null = null;
 
-  private constructor() {}
+  private zoom = 1;
+  private panX = 0;
+  private panY = 0;
 
+  private zoomSubscribers = new Set<(zoom: number) => void>();
+
+  private MIN_ZOOM = 0.1;
+  private MAX_ZOOM = 4;
+
+  private panning = false;
+  private panStart!: Point;
+
+  private constructor() {}
+  private onWheel = (e: WheelEvent) => {
+    if (!e.ctrlKey) return;
+
+    e.preventDefault();
+
+    const rect = this.canvas.getBoundingClientRect();
+    const point = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+
+    if (e.deltaY < 0) {
+      this.zoomIn(point);
+    } else {
+      this.zoomOut(point);
+    }
+  };
+
+  pan(dx: number, dy: number) {
+    this.panX += dx;
+    this.panY += dy;
+    this.render(useEditorStore.getState().shapes);
+  }
   private draftRect: {
     x: number;
     y: number;
     w: number;
     h: number;
+  } | null = null;
+
+  private draftCircle: {
+    cx: number;
+    cy: number;
+    r: number;
   } | null = null;
 
   private draftRhom: {
@@ -39,6 +79,63 @@ class CanvasManager {
     h: number;
   } | null = null;
 
+  setZoom(newZoom: number, center?: { x: number; y: number }) {
+    const prevZoom = this.zoom;
+
+    this.zoom = Math.min(this.MAX_ZOOM, Math.max(this.MIN_ZOOM, newZoom));
+
+    if (center) {
+      const scale = this.zoom / prevZoom;
+      this.panX = center.x - scale * (center.x - this.panX);
+      this.panY = center.y - scale * (center.y - this.panY);
+    }
+
+    // ✅ notify listeners
+    this.zoomSubscribers.forEach((cb) => cb(this.zoom));
+
+    this.render(useEditorStore.getState().shapes);
+  }
+
+  zoomIn(center?: { x: number; y: number }) {
+    this.setZoom(this.zoom * 1.1, center);
+  }
+
+  zoomOut(center?: { x: number; y: number }) {
+    this.setZoom(this.zoom / 1.1, center);
+  }
+
+  getZoom() {
+    return this.zoom;
+  }
+
+  getCanvas() {
+    return this.canvas;
+  }
+
+  subscribeZoom(cb: (zoom: number) => void) {
+    this.zoomSubscribers.add(cb);
+
+    // ✅ IMPORTANT: return a FUNCTION, not a boolean
+    return () => {
+      this.zoomSubscribers.delete(cb);
+    };
+  }
+
+  resetZoom() {
+    this.setZoom(1);
+    this.panX = 0;
+    this.panY = 0;
+  }
+  setDraftCircle(cx: number, cy: number, r: number) {
+    this.draftCircle = { cx, cy, r };
+    this.render(useEditorStore.getState().shapes);
+  }
+
+  clearDraftCircle() {
+    this.draftCircle = null;
+    this.render(useEditorStore.getState().shapes);
+  }
+
   setSelectionRect(
     rect: {
       x: number;
@@ -54,10 +151,22 @@ class CanvasManager {
   private drawSelection(shape: Shape) {
     this.ctx.save();
     this.ctx.setLineDash([4, 4]);
-    this.ctx.strokeStyle = "#60a5fa"; // light blue
+    this.ctx.strokeStyle = "#60a5fa";
 
-    const bounds = this.getShapeBounds(shape);
-    this.ctx.strokeRect(bounds?.x!, bounds?.y!, bounds?.w!, bounds?.h!);
+    switch (shape.type) {
+      case "circle":
+        this.ctx.beginPath();
+        this.ctx.arc(shape.cx, shape.cy, shape.r, 0, Math.PI * 2);
+        this.ctx.stroke();
+        break;
+
+      default: {
+        const bounds = this.getShapeBounds(shape);
+        if (bounds) {
+          this.ctx.strokeRect(bounds.x, bounds.y, bounds.w, bounds.h);
+        }
+      }
+    }
 
     this.ctx.restore();
   }
@@ -117,7 +226,13 @@ class CanvasManager {
     switch (shape.type) {
       case "rect":
         return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
-
+      case "text":
+        return {
+          x: shape.x,
+          y: shape.y - shape.h,
+          w: shape.w,
+          h: shape.h,
+        };
       case "line":
       case "arrow": {
         const x = Math.min(shape.startPoint.x, shape.endPoint.x);
@@ -126,6 +241,13 @@ class CanvasManager {
         const h = Math.abs(shape.startPoint.y - shape.endPoint.y);
         return { x, y, w, h };
       }
+      case "circle":
+        return {
+          x: shape.cx - shape.r,
+          y: shape.cy - shape.r,
+          w: shape.r * 2,
+          h: shape.r * 2,
+        };
       case "rhombus": {
         const xs = [
           shape.top.x!,
@@ -223,6 +345,7 @@ class CanvasManager {
     this.draftPencil = null;
     this.draftRect = null;
     this.draftRhom = null;
+    this.draftCircle = null;
   }
 
   static getInstance() {
@@ -240,7 +363,14 @@ class CanvasManager {
     canvas.height = rect.height * this.dpr;
 
     this.ctx = canvas.getContext("2d")!;
-    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.ctx.setTransform(
+      this.dpr * this.zoom,
+      0,
+      0,
+      this.dpr * this.zoom,
+      this.panX * this.dpr,
+      this.panY * this.dpr,
+    );
     this.bindEvents();
   }
   resize() {
@@ -249,32 +379,47 @@ class CanvasManager {
     this.canvas.width = rect.width * this.dpr;
     this.canvas.height = rect.height * this.dpr;
 
-    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.ctx.setTransform(
+      this.dpr * this.zoom,
+      0,
+      0,
+      this.dpr * this.zoom,
+      this.panX * this.dpr,
+      this.panY * this.dpr,
+    );
 
     this.render();
   }
-  render(shapes: Shape[] = []) {
+  render(shapes?: Shape[]) {
+    const finalShapes = shapes ?? useEditorStore.getState().shapes;
     const { selectedShapeIds } = useEditorStore.getState();
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
+    this.ctx.setTransform(
+      this.dpr * this.zoom,
+      0,
+      0,
+      this.dpr * this.zoom,
+      this.panX * this.dpr,
+      this.panY * this.dpr,
+    );
     this.ctx.save();
     this.ctx.strokeStyle = "#000000";
     this.ctx.fillStyle = "#000000";
 
-    for (const shape of shapes) {
+    for (const shape of finalShapes) {
       this.drawShape(shape);
 
-      // if (shape.id === selectedId) {
+      // if (selectedShapeIds.includes(shape.id)) {
       //   this.drawSelection(shape);
       // }
     }
-    const bounds = this.getSelectionBounds(shapes, selectedShapeIds);
+    const bounds = this.getSelectionBounds(finalShapes, selectedShapeIds);
 
     if (bounds) {
       this.drawSelectionBox(bounds);
     }
     this.ctx.restore();
-
     if (this.draftRect) {
       this.ctx.save();
 
@@ -399,6 +544,23 @@ class CanvasManager {
 
       this.ctx.restore();
     }
+    if (this.draftCircle) {
+      this.ctx.save();
+      this.ctx.setLineDash([6, 4]);
+      this.ctx.strokeStyle = "#000";
+
+      this.ctx.beginPath();
+      this.ctx.arc(
+        this.draftCircle.cx,
+        this.draftCircle.cy,
+        this.draftCircle.r,
+        0,
+        Math.PI * 2,
+      );
+      this.ctx.stroke();
+
+      this.ctx.restore();
+    }
   }
 
   private drawShape(shape: Shape) {
@@ -406,6 +568,19 @@ class CanvasManager {
       case "rect":
         this.ctx.strokeRect(shape.x, shape.y, shape.w, shape.h);
         break;
+      case "text":
+        this.ctx.save();
+        this.ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
+        this.ctx.fillStyle = shape.color;
+        this.ctx.fillText(shape.text, shape.x, shape.y);
+        this.ctx.restore();
+        break;
+      case "circle":
+        this.ctx.beginPath();
+        this.ctx.arc(shape.cx, shape.cy, shape.r, 0, Math.PI * 2);
+        this.ctx.stroke();
+        break;
+
       case "rhombus":
         this.ctx.beginPath();
         this.ctx.moveTo(shape.top.x!, shape.top.y!);
@@ -476,6 +651,7 @@ class CanvasManager {
   }
 
   private onPointerDown = (e: PointerEvent) => {
+    console.log("POINTER DOWN", this.activeTool);
     this.activeTool?.onPointerDown(e);
   };
 
@@ -488,17 +664,30 @@ class CanvasManager {
   };
 
   bindEvents() {
-    this.canvas.addEventListener("pointerdown", this.onPointerDown);
+    this.canvas.addEventListener("pointerdown", (e) => {
+      if (this.activeTool?.constructor.name === "TextTool") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      this.onPointerDown(e);
+    });
+    this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
+
     this.canvas.addEventListener("pointermove", this.onPointerMove);
     this.canvas.addEventListener("pointerup", this.onPointerUp);
   }
   toCanvasPoint(e: PointerEvent) {
     const rect = this.canvas.getBoundingClientRect();
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (x - this.panX) / this.zoom,
+      y: (y - this.panY) / this.zoom,
     };
   }
+
   setActiveTool(tool: ToolController | null) {
     this.activeTool = tool;
   }

@@ -7,7 +7,15 @@ export function hitTest(point: Point, shape: Shape): boolean {
   switch (shape.type) {
     case "rect":
       return hitRect(point, shape);
-
+    case "circle":
+      return hitCircle(point, shape);
+    case "text":
+      return hitRect(point, {
+        x: shape.x,
+        y: shape.y - shape.h,
+        w: shape.w,
+        h: shape.h,
+      });
     case "line":
     case "arrow":
       return hitLine(point, shape.startPoint, shape.endPoint);
@@ -15,9 +23,26 @@ export function hitTest(point: Point, shape: Shape): boolean {
       return hitRhombus(point, shape);
     case "pencil":
       return hitPencil(point, shape.points);
+    case "text":
+      return hitRect(point, {
+        x: shape.x,
+        y: shape.y - shape.h,
+        w: shape.w,
+        h: shape.h,
+      });
     default:
       return false;
   }
+}
+function hitCircle(
+  p: Point,
+  c: { cx: number; cy: number; r: number },
+): boolean {
+  const dx = p.x - c.cx;
+  const dy = p.y - c.cy;
+  const distance = Math.hypot(dx, dy);
+
+  return distance <= c.r + HIT_TOLERANCE;
 }
 
 function hitRhombus(

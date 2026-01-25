@@ -4,11 +4,14 @@ import { useEffect, useRef } from "react";
 import CanvasManager from "@/lib/canvas/CanvasManager";
 import { useEditorStore } from "@/store/editor";
 import { RectangleTool } from "@/lib/shapes/RectangleTool";
+import { EraserTool } from "@/lib/shapes/EraserTool";
 import { PencilTool } from "@/lib/shapes/PencilTool";
 import { LineTool } from "@/lib/shapes/LineTool";
 import { ArrowTool } from "@/lib/shapes/ArrowTool";
 import { SelectTool } from "@/lib/shapes/SelectTool";
 import { RhombusTool } from "@/lib/shapes/RhombusTool";
+import { CircleTool } from "@/lib/shapes/CircleTool";
+import { TextTool } from "@/lib/shapes/TextTool";
 
 export default function CanvasComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,6 +32,9 @@ export default function CanvasComponent() {
       case "pencil":
         manager.setActiveTool(new PencilTool()); // or SelectTool later
         break;
+      case "circle":
+        manager.setActiveTool(new CircleTool()); // or SelectTool later
+        break;
       case "line":
         manager.setActiveTool(new LineTool()); // or SelectTool later
         break;
@@ -37,6 +43,12 @@ export default function CanvasComponent() {
         break;
       case "rhombus":
         manager.setActiveTool(new RhombusTool()); // or SelectTool later
+        break;
+      case "eraser":
+        manager.setActiveTool(new EraserTool());
+        break;
+      case "text":
+        manager.setActiveTool(new TextTool());
         break;
     }
   }, [currentTool]);

@@ -21,6 +21,7 @@ type EditorState = {
 
   addShape: (shape: Shape) => void;
   updateShape: (id: string, updater: (shape: Shape) => Shape) => void;
+  removeShape: (id: string) => void;
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -47,6 +48,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   setShapes: (shapes) => set({ shapes }),
 
   setTool: (tool) => set({ currentTool: tool }),
+  removeShape: (id: string) =>
+    set((state) => ({
+      shapes: state.shapes.filter((s) => s.id !== id),
+    })),
 
   addShape: (shape) =>
     set((state) => ({

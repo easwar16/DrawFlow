@@ -27,6 +27,26 @@ export type Shape =
       type: "arrow";
       startPoint: { x: number; y: number };
       endPoint: { x: number; y: number };
+    }
+  // ✅ NEW: CIRCLE
+  | {
+      id: string;
+      type: "circle";
+      cx: number;
+      cy: number;
+      r: number;
+    }
+  | {
+      id: string;
+      type: "text";
+      x: number;
+      y: number;
+      text: string;
+      fontSize: number;
+      fontFamily: string;
+      color: string; // 👈 REQUIRED
+      w: number;
+      h: number;
     };
 
 export interface ToolController {
@@ -34,7 +54,14 @@ export interface ToolController {
   onPointerMove(e: PointerEvent): void;
   onPointerUp(e: PointerEvent): void;
 }
-
+type CirclePayload = {
+  roomId: number;
+  cx: number;
+  cy: number;
+  r: number;
+  stroke: string;
+  fill: string;
+};
 type RectanglePayload = {
   roomId: number;
   x: number;
