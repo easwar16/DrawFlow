@@ -14,6 +14,11 @@ class CanvasManager {
   private panX = 0;
   private panY = 0;
 
+  private isSpacePressed = false;
+  private isPanning = false;
+  private panStartScreen!: Point;
+  private panStartOffset!: Point;
+
   private zoomSubscribers = new Set<(zoom: number) => void>();
 
   private MIN_ZOOM = 0.1;
@@ -45,6 +50,30 @@ class CanvasManager {
     this.panX += dx;
     this.panY += dy;
     this.render(useEditorStore.getState().shapes);
+  }
+
+  startPan(e: PointerEvent) {
+    this.isPanning = true;
+    this.panStartScreen = { x: e.clientX, y: e.clientY };
+    this.panStartOffset = { x: this.panX, y: this.panY };
+    this.canvas.style.cursor = "grabbing";
+  }
+
+  movePan(e: PointerEvent) {
+    if (!this.isPanning) return;
+
+    const dx = e.clientX - this.panStartScreen.x;
+    const dy = e.clientY - this.panStartScreen.y;
+
+    this.panX = this.panStartOffset.x + dx;
+    this.panY = this.panStartOffset.y + dy;
+
+    this.render();
+  }
+
+  endPan() {
+    this.isPanning = false;
+    this.canvas.style.cursor = "default";
   }
   private draftRect: {
     x: number;
@@ -181,15 +210,21 @@ class CanvasManager {
     let maxX = -Infinity;
     let maxY = -Infinity;
 
+    let hasBounds = false;
+
     for (const shape of selectedShapes) {
       const b = this.getShapeBounds(shape);
       if (!b) continue;
+
+      hasBounds = true;
 
       minX = Math.min(minX, b.x);
       minY = Math.min(minY, b.y);
       maxX = Math.max(maxX, b.x + b.w);
       maxY = Math.max(maxY, b.y + b.h);
     }
+
+    if (!hasBounds) return null;
 
     return {
       x: minX,
@@ -363,6 +398,7 @@ class CanvasManager {
     canvas.height = rect.height * this.dpr;
 
     this.ctx = canvas.getContext("2d")!;
+
     this.ctx.setTransform(
       this.dpr * this.zoom,
       0,
@@ -393,6 +429,14 @@ class CanvasManager {
   render(shapes?: Shape[]) {
     const finalShapes = shapes ?? useEditorStore.getState().shapes;
     const { selectedShapeIds } = useEditorStore.getState();
+    const selectionBounds = this.getSelectionBounds(
+      finalShapes,
+      selectedShapeIds,
+    );
+
+    if (selectionBounds) {
+      this.drawSelectionBox(selectionBounds);
+    }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.setTransform(
@@ -649,17 +693,30 @@ class CanvasManager {
     this.ctx.fillStyle = bg;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
-
   private onPointerDown = (e: PointerEvent) => {
-    console.log("POINTER DOWN", this.activeTool);
+    // 🖐 SPACE + CLICK → PAN
+    if (this.isSpacePressed) {
+      this.startPan(e);
+      return; // ⛔ DO NOT forward to active tool
+    }
+
     this.activeTool?.onPointerDown(e);
   };
-
   private onPointerMove = (e: PointerEvent) => {
+    if (this.isPanning) {
+      this.movePan(e);
+      return;
+    }
+
     this.activeTool?.onPointerMove(e);
   };
 
   private onPointerUp = (e: PointerEvent) => {
+    if (this.isPanning) {
+      this.endPan();
+      return;
+    }
+
     this.activeTool?.onPointerUp(e);
   };
 
@@ -672,7 +729,20 @@ class CanvasManager {
       this.onPointerDown(e);
     });
     this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        this.isSpacePressed = true;
+        this.canvas.style.cursor = "grab";
+      }
+    });
 
+    window.addEventListener("keyup", (e) => {
+      if (e.code === "Space") {
+        this.isSpacePressed = false;
+        this.isPanning = false;
+        this.canvas.style.cursor = "default";
+      }
+    });
     this.canvas.addEventListener("pointermove", this.onPointerMove);
     this.canvas.addEventListener("pointerup", this.onPointerUp);
   }
@@ -689,7 +759,16 @@ class CanvasManager {
   }
 
   setActiveTool(tool: ToolController | null) {
+    if (!this.canvas) {
+      this.activeTool = tool;
+      return;
+    }
+    this.activeTool?.onDeactivate?.(this.canvas);
+
     this.activeTool = tool;
+
+    // activate new tool
+    this.activeTool?.onActivate?.(this.canvas);
   }
 }
 

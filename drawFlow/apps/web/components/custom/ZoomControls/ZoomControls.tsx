@@ -30,7 +30,7 @@ export default function ZoomControls() {
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 shadow">
+    <div className="fixed bottom-6 left-6 flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 shadow">
       <button
         onClick={() => zoomAtCenter("out")}
         className="px-3 py-1 rounded hover:bg-gray-200"

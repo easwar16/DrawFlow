@@ -12,6 +12,7 @@ import { SelectTool } from "@/lib/shapes/SelectTool";
 import { RhombusTool } from "@/lib/shapes/RhombusTool";
 import { CircleTool } from "@/lib/shapes/CircleTool";
 import { TextTool } from "@/lib/shapes/TextTool";
+import { HandTool } from "@/lib/shapes/HandTool";
 
 export default function CanvasComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,6 +25,9 @@ export default function CanvasComponent() {
     switch (currentTool) {
       case "rect":
         manager.setActiveTool(new RectangleTool());
+        break;
+      case "hand":
+        manager.setActiveTool(new HandTool());
         break;
 
       case "select":

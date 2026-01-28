@@ -29,6 +29,7 @@ export type ToolType =
   | "pencil"
   | "rhombus"
   | "circle"
+  | "hand"
   | "text"
   | "eraser"
   | "arrow";

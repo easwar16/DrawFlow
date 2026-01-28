@@ -51,6 +51,8 @@ export type Shape =
 
 export interface ToolController {
   onPointerDown(e: PointerEvent): void;
+  onActivate?(canvas: HTMLCanvasElement): void;
+  onDeactivate?(canvas: HTMLCanvasElement): void;
   onPointerMove(e: PointerEvent): void;
   onPointerUp(e: PointerEvent): void;
 }

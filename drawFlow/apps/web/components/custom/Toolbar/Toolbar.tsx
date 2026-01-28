@@ -2,7 +2,7 @@
 
 import { useEditorStore } from "@/store/editor";
 import { PiCursorFill } from "react-icons/pi";
-import { FaRegSquare } from "react-icons/fa";
+import { FaRegHandPaper, FaRegSquare } from "react-icons/fa";
 import { GoPencil } from "react-icons/go";
 import { MdOutlineHorizontalRule } from "react-icons/md";
 import { LuDiamond } from "react-icons/lu";
@@ -25,6 +25,13 @@ export default function Toolbar() {
     ring-1 ring-black/5
     z-50"
     >
+      <ToolButton
+        label="hand"
+        active={currentTool === "hand"}
+        onClick={() => setTool("hand")}
+      >
+        <FaRegHandPaper />
+      </ToolButton>
       <ToolButton
         label="Select"
         active={currentTool === "select"}

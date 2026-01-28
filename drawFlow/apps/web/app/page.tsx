@@ -11,9 +11,10 @@ import {
   Brush,
 } from "lucide-react";
 import LandingPage from "../pages/landingPage/landingPage";
+import Home from "@/pages/betterLandingPage/pages/page";
 
 function App() {
-  return <LandingPage />;
+  return <Home />;
 }
 
 export default App;

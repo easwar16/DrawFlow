@@ -35,8 +35,9 @@ export class TextTool implements ToolController {
     textarea.style.left = `${this.x}px`;
     textarea.style.top = `${this.y}px`;
     textarea.style.fontSize = "20px";
-    textarea.style.fontFamily = "sans-serif";
-    textarea.style.border = "1px dashed #60a5fa";
+    textarea.style.fontFamily = "Virgil";
+
+    textarea.style.border = "1px dashed #ffffff";
     textarea.style.background = "white";
     textarea.style.color = "black";
     textarea.style.resize = "none";
@@ -72,7 +73,7 @@ export class TextTool implements ToolController {
     const ctx = (cm as any).ctx as CanvasRenderingContext2D;
 
     const fontSize = 20;
-    const fontFamily = "sans-serif";
+    const fontFamily = "Virgil";
 
     ctx.font = `${fontSize}px ${fontFamily}`;
     const w = ctx.measureText(text).width;

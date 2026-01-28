@@ -7,7 +7,6 @@ import { hitTest } from "../utils/hitTest";
 export class SelectTool implements ToolController {
   private dragging = false;
   private dragStart!: Point;
-  private draggedShapeId: string | null = null;
 
   private isMarquee = false;
   private marqueeStart!: Point;
@@ -18,6 +17,13 @@ export class SelectTool implements ToolController {
     h: number;
   } | null = null;
 
+  onDeactivate() {
+    this.dragging = false;
+    this.isMarquee = false;
+    this.marqueeRect = null;
+    CanvasManager.getInstance().setSelectionRect(null);
+  }
+
   // -----------------------------
   // Pointer Down
   // -----------------------------
@@ -25,21 +31,39 @@ export class SelectTool implements ToolController {
     const cm = CanvasManager.getInstance();
     const p = cm.toCanvasPoint(e);
 
-    const { shapes, setSelectedShapeIds } = useEditorStore.getState();
+    const { shapes, selectedShapeIds, setSelectedShapeIds } =
+      useEditorStore.getState();
 
-    // 🔼 topmost shape first
+    // 🔼 find topmost hit
     for (const shape of [...shapes].reverse()) {
       if (!hitTest(p, shape)) continue;
 
-      setSelectedShapeIds([shape.id]);
+      const alreadySelected = selectedShapeIds.includes(shape.id);
+
+      // ✅ click inside selection → drag all
+      if (alreadySelected) {
+        this.dragging = true;
+        this.dragStart = p;
+        return;
+      }
+
+      // ✅ new selection
+      setSelectedShapeIds(
+        e.shiftKey ? [...selectedShapeIds, shape.id] : [shape.id],
+      );
+
       this.dragging = true;
-      this.draggedShapeId = shape.id;
       this.dragStart = p;
       return;
     }
 
-    // empty canvas → marquee
-    setSelectedShapeIds([]);
+    // 🟥 empty canvas → marquee
+    this.dragging = false;
+
+    if (!e.shiftKey) {
+      setSelectedShapeIds([]);
+    }
+
     this.startMarquee(p);
   }
 
@@ -50,7 +74,7 @@ export class SelectTool implements ToolController {
     const cm = CanvasManager.getInstance();
     const p = cm.toCanvasPoint(e);
 
-    // 🟦 marquee drag
+    // 🟦 marquee
     if (this.isMarquee && this.marqueeStart) {
       const x = Math.min(this.marqueeStart.x, p.x);
       const y = Math.min(this.marqueeStart.y, p.y);
@@ -62,63 +86,59 @@ export class SelectTool implements ToolController {
       return;
     }
 
-    // 🟩 shape drag
-    if (!this.dragging || !this.draggedShapeId) return;
+    if (!this.dragging) return;
 
     const dx = p.x - this.dragStart.x;
     const dy = p.y - this.dragStart.y;
     this.dragStart = p;
 
-    useEditorStore.getState().updateShape(this.draggedShapeId, (shape) => {
-      switch (shape.type) {
-        case "text":
-        case "rect":
-          return {
-            ...shape,
-            x: shape.x + dx,
-            y: shape.y + dy,
-          };
+    const { selectedShapeIds, updateShape } = useEditorStore.getState();
 
-        case "circle":
-          return {
-            ...shape,
-            cx: shape.cx + dx,
-            cy: shape.cy + dy,
-          };
+    // 🔥 MOVE ALL SELECTED SHAPES
+    for (const id of selectedShapeIds) {
+      updateShape(id, (shape) => {
+        switch (shape.type) {
+          case "rect":
+          case "text":
+            return { ...shape, x: shape.x + dx, y: shape.y + dy };
 
-        case "line":
-        case "arrow":
-          return {
-            ...shape,
-            startPoint: {
-              x: shape.startPoint.x + dx,
-              y: shape.startPoint.y + dy,
-            },
-            endPoint: {
-              x: shape.endPoint.x + dx,
-              y: shape.endPoint.y + dy,
-            },
-          };
+          case "circle":
+            return { ...shape, cx: shape.cx + dx, cy: shape.cy + dy };
 
-        case "rhombus":
-          return {
-            ...shape,
-            top: { x: shape.top.x + dx, y: shape.top.y + dy },
-            right: { x: shape.right.x + dx, y: shape.right.y + dy },
-            bottom: { x: shape.bottom.x + dx, y: shape.bottom.y + dy },
-            left: { x: shape.left.x + dx, y: shape.left.y + dy },
-          };
+          case "line":
+          case "arrow":
+            return {
+              ...shape,
+              startPoint: {
+                x: shape.startPoint.x + dx,
+                y: shape.startPoint.y + dy,
+              },
+              endPoint: {
+                x: shape.endPoint.x + dx,
+                y: shape.endPoint.y + dy,
+              },
+            };
 
-        case "pencil":
-          return {
-            ...shape,
-            points: shape.points.map((p) => ({
-              x: p.x + dx,
-              y: p.y + dy,
-            })),
-          };
-      }
-    });
+          case "rhombus":
+            return {
+              ...shape,
+              top: { x: shape.top.x + dx, y: shape.top.y + dy },
+              right: { x: shape.right.x + dx, y: shape.right.y + dy },
+              bottom: { x: shape.bottom.x + dx, y: shape.bottom.y + dy },
+              left: { x: shape.left.x + dx, y: shape.left.y + dy },
+            };
+
+          case "pencil":
+            return {
+              ...shape,
+              points: shape.points.map((pt) => ({
+                x: pt.x + dx,
+                y: pt.y + dy,
+              })),
+            };
+        }
+      });
+    }
   }
 
   // -----------------------------
@@ -127,9 +147,9 @@ export class SelectTool implements ToolController {
   onPointerUp() {
     const cm = CanvasManager.getInstance();
 
-    // commit marquee selection
     if (this.isMarquee && this.marqueeRect) {
       const { shapes, setSelectedShapeIds } = useEditorStore.getState();
+
       const selected: string[] = [];
 
       for (const shape of shapes) {
@@ -144,9 +164,7 @@ export class SelectTool implements ToolController {
       setSelectedShapeIds(selected);
     }
 
-    // cleanup
     this.dragging = false;
-    this.draggedShapeId = null;
     this.isMarquee = false;
     this.marqueeRect = null;
 
