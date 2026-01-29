@@ -15,12 +15,60 @@ export function ActiveSession({
   const [username, setLocalUsername] = useState("");
 
   useEffect(() => {
-    setLocalUsername(getUsername());
+    const stored = getUsername();
+    setLocalUsername(stored);
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/bc097565-0755-45ed-9438-941e2702e41d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "debug-session",
+        runId: "initial",
+        hypothesisId: "H3",
+        location: "ActiveSession.tsx:18",
+        message: "Loaded stored username",
+        data: {
+          hasUsername: Boolean(stored),
+          usernameLen: stored?.length ?? 0,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
   }, []);
 
   useEffect(() => {
     if (username) setUsername(username);
   }, [username]);
+
+  useEffect(() => {
+    const isWindow = typeof window !== "undefined";
+    const origin = isWindow ? window.location.origin : "";
+    const computedUrl = isWindow
+      ? `${origin}/draw?roomId=${encodeURIComponent(roomId)}`
+      : "";
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/bc097565-0755-45ed-9438-941e2702e41d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "debug-session",
+        runId: "initial",
+        hypothesisId: "H1",
+        location: "ActiveSession.tsx:33",
+        message: "Computed share URL",
+        data: {
+          isWindow,
+          origin,
+          roomIdPresent: Boolean(roomId),
+          roomIdLen: roomId.length,
+          urlLen: computedUrl.length,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [roomId]);
 
   const url =
     typeof window !== "undefined"
@@ -28,6 +76,21 @@ export function ActiveSession({
       : "";
 
   const copy = async () => {
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/bc097565-0755-45ed-9438-941e2702e41d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "debug-session",
+        runId: "initial",
+        hypothesisId: "H2",
+        location: "ActiveSession.tsx:51",
+        message: "Copy link clicked",
+        data: { urlLen: url.length, roomIdLen: roomId.length },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     await navigator.clipboard.writeText(url);
   };
 

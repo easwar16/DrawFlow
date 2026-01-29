@@ -814,6 +814,27 @@ class CanvasManager {
         this.canvas.style.cursor = "grab";
       }
 
+      const isMeta = e.ctrlKey || e.metaKey;
+      if (isMeta && !this.editingTextId) {
+        if (e.key.toLowerCase() === "z") {
+          const { undo, redo } = useEditorStore.getState();
+          if (e.shiftKey) {
+            redo();
+          } else {
+            undo();
+          }
+          this.render();
+          e.preventDefault();
+          return;
+        }
+        if (e.key.toLowerCase() === "y") {
+          useEditorStore.getState().redo();
+          this.render();
+          e.preventDefault();
+          return;
+        }
+      }
+
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
         !this.editingTextId &&

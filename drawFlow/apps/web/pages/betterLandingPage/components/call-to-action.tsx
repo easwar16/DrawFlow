@@ -34,9 +34,8 @@ export function CallToAction() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div
           ref={sectionRef}
-          className={`relative rounded-3xl bg-foreground overflow-hidden transition-all duration-700 ${
-            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}
+          className={`relative rounded-3xl bg-foreground overflow-hidden transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+            }`}
         >
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
@@ -77,7 +76,7 @@ export function CallToAction() {
             <Button
               size="lg"
               className="gap-2 px-10 h-14 text-lg shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all"
-              onClick={() => router.push("/auth")}
+              onClick={() => router.push("/draw")}
             >
               Start Drawing Now
               <ArrowRight className="h-5 w-5" />

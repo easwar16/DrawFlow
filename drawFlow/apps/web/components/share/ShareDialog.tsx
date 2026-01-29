@@ -34,6 +34,24 @@ export function ShareDialog({
       setRoomId(id);
       setState("active");
     }
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/bc097565-0755-45ed-9438-941e2702e41d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "debug-session",
+        runId: "initial",
+        hypothesisId: "H2",
+        location: "ShareDialog.tsx:31",
+        message: "ShareDialog searchParams processed",
+        data: {
+          hasRoomIdParam: Boolean(id),
+          roomIdLen: id?.length ?? 0,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
   }, [searchParams]);
 
   const startSession = () => {
