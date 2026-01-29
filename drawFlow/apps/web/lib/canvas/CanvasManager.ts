@@ -139,9 +139,6 @@ class CanvasManager {
     this.setZoom(this.zoom / 1.1, center);
   }
 
-  getZoom() {
-    return this.zoom;
-  }
 
   getCanvas() {
     return this.canvas;
@@ -513,11 +510,6 @@ class CanvasManager {
         ? finalShapes.find((s) => s.id === selectedShapeIds[0])
         : null;
 
-    if (this.editingTextId) {
-      // keep selection hidden while editing text
-    } else if (selectionBounds) {
-      this.drawSelectionBox(selectionBounds, selectedShapeIds.length === 1);
-    }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.setTransform(
@@ -539,13 +531,11 @@ class CanvasManager {
       //   this.drawSelection(shape);
       // }
     }
-    if (singleSelected) {
-      this.drawLineHandles(singleSelected);
+    if (!this.editingTextId && selectionBounds) {
+      this.drawSelectionBox(selectionBounds, selectedShapeIds.length === 1);
     }
-    const bounds = this.getSelectionBounds(finalShapes, selectedShapeIds);
-
-    if (bounds) {
-      this.drawSelectionBox(bounds);
+    if (!this.editingTextId && singleSelected) {
+      this.drawLineHandles(singleSelected);
     }
     this.ctx.restore();
     if (this.draftRect) {
@@ -822,6 +812,24 @@ class CanvasManager {
       if (e.code === "Space") {
         this.isSpacePressed = true;
         this.canvas.style.cursor = "grab";
+      }
+
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        !this.editingTextId &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        const { selectedShapeIds, removeShape, setSelectedShapeIds } =
+          useEditorStore.getState();
+        if (selectedShapeIds.length > 0) {
+          for (const id of selectedShapeIds) {
+            removeShape(id);
+          }
+          setSelectedShapeIds([]);
+          this.render();
+          e.preventDefault();
+        }
       }
     });
 
