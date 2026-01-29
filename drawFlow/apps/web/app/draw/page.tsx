@@ -13,29 +13,32 @@ import { Button } from "@/components/ui/button";
 export default function Canvas() {
   const searchParams = useSearchParams();
   const setRoomId = useEditorStore((s) => s.setRoomId);
+  const loadShapesFromStorage = useEditorStore((s) => s.loadShapesFromStorage);
+  const connectWebSocket = useEditorStore((s) => s.connectWebSocket);
+  const disconnectWebSocket = useEditorStore((s) => s.disconnectWebSocket);
 
   useEffect(() => {
-    const roomId = searchParams?.get("roomId") ?? null;
-    setRoomId(roomId);
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/bc097565-0755-45ed-9438-941e2702e41d", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "debug-session",
-        runId: "initial",
-        hypothesisId: "H2",
-        location: "page.tsx:14",
-        message: "Draw page searchParams handled",
-        data: {
-          hasRoomIdParam: Boolean(roomId),
-          roomIdLen: roomId?.length ?? 0,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => { });
-    // #endregion
-  }, [searchParams, setRoomId]);
+    const roomIdFromParams = searchParams?.get("roomId") ?? null;
+    setRoomId(roomIdFromParams);
+
+    if (roomIdFromParams === null) {
+      // Disconnect WebSocket and load from localStorage
+      disconnectWebSocket();
+      loadShapesFromStorage();
+    } else {
+      // Connect to WebSocket when joining a room (login-less service)
+      connectWebSocket(roomIdFromParams).catch((error) => {
+        console.error("Failed to connect WebSocket:", error);
+      });
+    }
+
+    // Cleanup: disconnect on unmount
+    return () => {
+      if (roomIdFromParams !== null) {
+        disconnectWebSocket();
+      }
+    };
+  }, [searchParams, setRoomId, loadShapesFromStorage, connectWebSocket, disconnectWebSocket]);
 
   return (
     <div className="w-screen h-screen">

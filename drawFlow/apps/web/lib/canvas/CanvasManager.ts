@@ -500,7 +500,7 @@ class CanvasManager {
   }
   render(shapes?: Shape[]) {
     const finalShapes = shapes ?? useEditorStore.getState().shapes;
-    const { selectedShapeIds } = useEditorStore.getState();
+    const { selectedShapeIds, cursors } = useEditorStore.getState();
     const selectionBounds = this.getSelectionBounds(
       finalShapes,
       selectedShapeIds,
@@ -679,6 +679,9 @@ class CanvasManager {
 
       this.ctx.restore();
     }
+
+    // Render cursors on top of everything (after all draft shapes)
+    this.renderCursors(Array.from(cursors.values()));
   }
 
   private drawShape(shape: Shape) {
@@ -864,7 +867,7 @@ class CanvasManager {
     this.canvas.addEventListener("pointermove", this.onPointerMove);
     this.canvas.addEventListener("pointerup", this.onPointerUp);
   }
-  toCanvasPoint(e: PointerEvent) {
+  toCanvasPoint(e: PointerEvent | { clientX: number; clientY: number }) {
     const rect = this.canvas.getBoundingClientRect();
 
     const x = e.clientX - rect.left;
@@ -911,6 +914,109 @@ class CanvasManager {
 
     // activate new tool
     this.activeTool?.onActivate?.(this.canvas);
+  }
+
+  renderCursors(cursors: Array<{ userId: string; username: string; x: number; y: number }>) {
+    if (!this.canvas || !this.ctx || cursors.length === 0) return;
+
+    // Render cursors on top of everything
+    // Note: This is called after ctx.restore(), so we're in screen space
+    // We need to apply the transform manually for cursor rendering
+    this.ctx.save();
+    
+    // Apply the same transform as the main render
+    this.ctx.setTransform(
+      this.dpr * this.zoom,
+      0,
+      0,
+      this.dpr * this.zoom,
+      this.panX * this.dpr,
+      this.panY * this.dpr,
+    );
+    
+    const cursorColors = [
+      "#ef4444",
+      "#f97316",
+      "#eab308",
+      "#22c55e",
+      "#14b8a6",
+      "#06b6d4",
+      "#3b82f6",
+      "#8b5cf6",
+      "#ec4899",
+      "#f43f5e",
+    ];
+    const getCursorColor = (id: string) => {
+      let hash = 0;
+      for (let i = 0; i < id.length; i += 1) {
+        hash = (hash * 31 + id.charCodeAt(i)) | 0;
+      }
+      const index = Math.abs(hash) % cursorColors.length;
+      return cursorColors[index] ?? "#3b82f6";
+    };
+
+    const selfCursorId =
+      typeof window !== "undefined" ? sessionStorage.getItem("drawflow:cursorId") : null;
+
+    // Cursors are in canvas coordinates, so we can draw them directly
+    for (const cursor of cursors) {
+      if (selfCursorId && cursor.userId === selfCursorId) {
+        continue;
+      }
+
+      const color = getCursorColor(cursor.userId ?? cursor.username ?? "user");
+      // Draw cursor pointer (mouse arrow)
+      const s = 10 / this.zoom;
+      const x = cursor.x;
+      const y = cursor.y;
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y);
+      this.ctx.lineTo(x + s * 0.2, y + s * 1.8);
+      this.ctx.lineTo(x + s * 0.6, y + s * 1.3);
+      this.ctx.lineTo(x + s * 1.1, y + s * 2.2);
+      this.ctx.lineTo(x + s * 1.4, y + s * 2.0);
+      this.ctx.lineTo(x + s * 0.9, y + s * 1.1);
+      this.ctx.lineTo(x + s * 1.7, y + s * 1.1);
+      this.ctx.closePath();
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.strokeStyle = "#111827";
+      this.ctx.lineWidth = 1 / this.zoom;
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Draw username below cursor
+      this.ctx.font = `${12 / this.zoom}px sans-serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "top";
+
+      const textMetrics = this.ctx.measureText(cursor.username);
+      const textWidth = textMetrics.width;
+      const textHeight = 16 / this.zoom;
+      const padding = 6 / this.zoom;
+
+      // Draw background rectangle for text
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.strokeStyle = "#e5e7eb";
+      this.ctx.lineWidth = 1 / this.zoom;
+      this.ctx.fillRect(
+        cursor.x - textWidth / 2 - padding,
+        cursor.y + 8 / this.zoom,
+        textWidth + padding * 2,
+        textHeight + padding
+      );
+      this.ctx.strokeRect(
+        cursor.x - textWidth / 2 - padding,
+        cursor.y + 8 / this.zoom,
+        textWidth + padding * 2,
+        textHeight + padding
+      );
+
+      // Draw text
+      this.ctx.fillStyle = color;
+      this.ctx.fillText(cursor.username, cursor.x, cursor.y + 8 / this.zoom + padding / 2);
+    }
+
+    this.ctx.restore();
   }
 }
 

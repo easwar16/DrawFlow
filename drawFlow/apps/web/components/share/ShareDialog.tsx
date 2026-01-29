@@ -25,6 +25,7 @@ export function ShareDialog({
 }) {
   const [state, setState] = useState<ShareState>("idle");
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -33,32 +34,21 @@ export function ShareDialog({
     if (id) {
       setRoomId(id);
       setState("active");
+      if (typeof window !== "undefined") {
+        const ownerKey = `drawflow:roomOwner:${id}`;
+        setIsOwner(localStorage.getItem(ownerKey) === "1");
+      }
     }
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/bc097565-0755-45ed-9438-941e2702e41d", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "debug-session",
-        runId: "initial",
-        hypothesisId: "H2",
-        location: "ShareDialog.tsx:31",
-        message: "ShareDialog searchParams processed",
-        data: {
-          hasRoomIdParam: Boolean(id),
-          roomIdLen: id?.length ?? 0,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
   }, [searchParams]);
 
   const startSession = () => {
     const id = createRoomId();
     setRoomId(id);
     setState("active");
+    setIsOwner(true);
     if (typeof window !== "undefined") {
+      const ownerKey = `drawflow:roomOwner:${id}`;
+      localStorage.setItem(ownerKey, "1");
       const nextUrl = `${pathname}?roomId=${encodeURIComponent(id)}`;
       window.history.replaceState({}, "", nextUrl);
     }
@@ -67,7 +57,12 @@ export function ShareDialog({
   const deactivateSession = () => {
     setRoomId(null);
     setState("idle");
+    setIsOwner(false);
     if (typeof window !== "undefined") {
+      if (roomId) {
+        const ownerKey = `drawflow:roomOwner:${roomId}`;
+        localStorage.removeItem(ownerKey);
+      }
       window.history.replaceState({}, "", pathname);
     }
   };
@@ -82,7 +77,11 @@ export function ShareDialog({
         {state === "idle" && <StartSession onStart={startSession} />}
 
         {state === "active" && roomId && (
-          <ActiveSession roomId={roomId} onDeactivate={deactivateSession} />
+          <ActiveSession
+            roomId={roomId}
+            onDeactivate={deactivateSession}
+            isOwner={isOwner}
+          />
         )}
       </DialogContent>
     </Dialog>

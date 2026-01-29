@@ -4,12 +4,10 @@
   "main": "index.js",
   "dependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/ws": "^8.18.1",
     "dotenv": "^17.2.3",
-    "jsonwebtoken": "^9.0.3",
-    "ws": "^8.18.3",
-    "@repo/db-schema": "workspace:*"
+    "redis": "^4.7.1",
+    "ws": "^8.18.3"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
