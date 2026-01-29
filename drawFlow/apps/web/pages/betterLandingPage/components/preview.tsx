@@ -33,9 +33,10 @@ export function Preview() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dpr = 2;
+    const dpr = window.devicePixelRatio || 1;
     canvas.width = canvas.offsetWidth * dpr;
     canvas.height = canvas.offsetHeight * dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 
     const width = canvas.offsetWidth;
@@ -210,7 +211,11 @@ export function Preview() {
       ctx.globalAlpha = 1;
     };
 
+    let rafId: number | null = null;
+    let isActive = true;
+
     const animate = (timestamp: number) => {
+      if (!isActive) return;
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
       const progress = elapsed / animationDuration;
@@ -274,11 +279,16 @@ export function Preview() {
       drawText("Ship!", 540, 295, (progress - 0.85) * 3, darkColor);
 
       if (progress < 1.2) {
-        requestAnimationFrame(animate);
+        rafId = requestAnimationFrame(animate);
       }
     };
 
-    requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(animate);
+
+    return () => {
+      isActive = false;
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [isVisible]);
 
   return (

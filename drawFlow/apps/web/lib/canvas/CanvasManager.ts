@@ -2,6 +2,9 @@ import { Point } from "@/types/shape/shape";
 import type { Shape, ToolController } from "../utils";
 import { useEditorStore } from "@/store/editor";
 
+export const SELECTION_BOX_PADDING = 6;
+export const SELECTION_HANDLE_SIZE = 8;
+
 class CanvasManager {
   private static instance: CanvasManager | null = null;
 
@@ -234,13 +237,16 @@ class CanvasManager {
     };
   }
 
-  private drawSelectionBox(bounds: {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-  }) {
-    const padding = 6;
+  private drawSelectionBox(
+    bounds: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    },
+    showHandles: boolean,
+  ) {
+    const padding = SELECTION_BOX_PADDING;
 
     this.ctx.save();
     this.ctx.setLineDash([6, 4]);
@@ -253,6 +259,48 @@ class CanvasManager {
       bounds.w + padding * 2,
       bounds.h + padding * 2,
     );
+
+    if (showHandles) {
+      this.drawSelectionHandles({
+        x: bounds.x - padding,
+        y: bounds.y - padding,
+        w: bounds.w + padding * 2,
+        h: bounds.h + padding * 2,
+      });
+    }
+
+    this.ctx.restore();
+  }
+
+  private drawSelectionHandles(bounds: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }) {
+    const size = SELECTION_HANDLE_SIZE;
+    const half = size / 2;
+    const points = [
+      { x: bounds.x, y: bounds.y },
+      { x: bounds.x + bounds.w / 2, y: bounds.y },
+      { x: bounds.x + bounds.w, y: bounds.y },
+      { x: bounds.x + bounds.w, y: bounds.y + bounds.h / 2 },
+      { x: bounds.x + bounds.w, y: bounds.y + bounds.h },
+      { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h },
+      { x: bounds.x, y: bounds.y + bounds.h },
+      { x: bounds.x, y: bounds.y + bounds.h / 2 },
+    ];
+
+    this.ctx.save();
+    this.ctx.setLineDash([]);
+    this.ctx.fillStyle = "#ffffff";
+    this.ctx.strokeStyle = "#60a5fa";
+    this.ctx.lineWidth = 1;
+
+    for (const p of points) {
+      this.ctx.fillRect(p.x - half, p.y - half, size, size);
+      this.ctx.strokeRect(p.x - half, p.y - half, size, size);
+    }
 
     this.ctx.restore();
   }
@@ -435,7 +483,7 @@ class CanvasManager {
     );
 
     if (selectionBounds) {
-      this.drawSelectionBox(selectionBounds);
+      this.drawSelectionBox(selectionBounds, selectedShapeIds.length === 1);
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);

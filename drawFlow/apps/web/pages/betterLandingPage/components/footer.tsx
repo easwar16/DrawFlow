@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Github, Twitter } from "lucide-react";
+import { Github } from "lucide-react";
 
 export function Footer() {
   return (
@@ -28,18 +28,29 @@ export function Footer() {
 
           <div className="flex items-center gap-6">
             <Link
-              href="#"
+              href="https://github.com/easwar16"
               className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label="GitHub"
+              target="_blank"
+              rel="noreferrer"
             >
               <Github className="h-5 w-5" />
             </Link>
             <Link
-              href="#"
+              href="https://x.com/Easwar_H"
               className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Twitter"
+              aria-label="X"
+              target="_blank"
+              rel="noreferrer"
             >
-              <Twitter className="h-5 w-5" />
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-5 w-5"
+                fill="currentColor"
+              >
+                <path d="M18.244 2H21l-6.56 7.5L22 22h-6.8l-4.65-6.13L5 22H2l7.1-8.12L2 2h6.95l4.2 5.55L18.244 2Z" />
+              </svg>
             </Link>
           </div>
 

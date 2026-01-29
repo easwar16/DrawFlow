@@ -104,8 +104,15 @@ export function Features() {
   }, []);
 
   return (
-    <section id="features" className="py-24 sm:py-32 bg-muted/30">
+    <section
+      id="features"
+      className="relative overflow-hidden py-24 sm:py-32 bg-muted/30"
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/10 blur-3xl animate-[float_14s_ease-in-out_infinite]" />
+          <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl animate-[float_16s_ease-in-out_infinite]" />
+        </div>
         <div
           ref={sectionRef}
           className={`text-center mb-16 transition-all duration-700 ${
@@ -122,7 +129,7 @@ export function Features() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
             <FeatureCard key={feature.title} feature={feature} index={index} />
           ))}

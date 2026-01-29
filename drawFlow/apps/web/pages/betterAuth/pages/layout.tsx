@@ -2,17 +2,14 @@ import React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import "../lib/css/betterLanding.css";
-import { ShareButton } from "@/components/share/ShareButton";
-// import "./globals.css";
+import "./globals.css";
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "DrawFlow - Think. Sketch. Flow.",
-  description:
-    "A modern web-based drawing app for visualizing ideas with infinite canvas, hand-drawn style, and real-time collaboration.",
+  title: "DrawFlow - Sign In",
+  description: "Sign in to DrawFlow and start sketching your ideas",
   generator: "v0.app",
   icons: {
     icon: [

@@ -18,8 +18,14 @@ export default function CanvasComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shapes = useEditorStore((s) => s.shapes);
   const currentTool = useEditorStore((s) => s.currentTool);
+  const previousToolRef = useRef(currentTool);
 
   useEffect(() => {
+    if (previousToolRef.current === "select" && currentTool !== "select") {
+      useEditorStore.getState().setSelectedShapeIds([]);
+    }
+    previousToolRef.current = currentTool;
+
     const manager = CanvasManager.getInstance();
     console.log("currentTool: " + currentTool);
     switch (currentTool) {

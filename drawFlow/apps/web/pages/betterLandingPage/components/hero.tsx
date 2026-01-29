@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -153,7 +154,7 @@ export function Hero() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
               size="lg"
-              onClick={() => router.push("/auth")}
+              onClick={() => router.push("/draw")}
               className="gap-2 px-8 h-12 text-base shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
             >
               Start Drawing
@@ -172,6 +173,10 @@ export function Hero() {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[800px]">
+                  <DialogHeader>
+                    <DialogTitle></DialogTitle>
+                    <DialogDescription></DialogDescription>
+                  </DialogHeader>
                   <div className="grid gap-4">
                     <Toolbar />
                     <CanvasComponent />

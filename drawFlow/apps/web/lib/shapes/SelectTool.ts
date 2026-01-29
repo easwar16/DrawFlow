@@ -1,6 +1,9 @@
 import { Shape, ToolController } from "../utils";
 import { useEditorStore } from "@/store/editor";
-import CanvasManager from "../canvas/CanvasManager";
+import CanvasManager, {
+  SELECTION_BOX_PADDING,
+  SELECTION_HANDLE_SIZE,
+} from "../canvas/CanvasManager";
 import { Point } from "@/types/shape/shape";
 import { hitTest } from "../utils/hitTest";
 
@@ -17,8 +20,20 @@ export class SelectTool implements ToolController {
     h: number;
   } | null = null;
 
+  private resizing = false;
+  private resizeHandle: ResizeHandle | null = null;
+  private initialBounds: { x: number; y: number; w: number; h: number } | null =
+    null;
+  private initialShapes = new Map<string, Shape>();
+
+  private static MIN_SIZE = 12;
+
   onDeactivate() {
     this.dragging = false;
+    this.resizing = false;
+    this.resizeHandle = null;
+    this.initialBounds = null;
+    this.initialShapes.clear();
     this.isMarquee = false;
     this.marqueeRect = null;
     CanvasManager.getInstance().setSelectionRect(null);
@@ -33,6 +48,23 @@ export class SelectTool implements ToolController {
 
     const { shapes, selectedShapeIds, setSelectedShapeIds } =
       useEditorStore.getState();
+
+    const selectionBounds = cm.getCurrentSelectionBounds();
+    if (selectionBounds && selectedShapeIds.length === 1) {
+      const handle = this.getHandleHit(p, selectionBounds);
+      if (handle) {
+        this.resizing = true;
+        this.resizeHandle = handle;
+        this.initialBounds = selectionBounds;
+        this.initialShapes.clear();
+        for (const shape of shapes) {
+          if (selectedShapeIds.includes(shape.id)) {
+            this.initialShapes.set(shape.id, this.cloneShape(shape));
+          }
+        }
+        return;
+      }
+    }
 
     // 🔼 find topmost hit
     for (const shape of [...shapes].reverse()) {
@@ -73,6 +105,11 @@ export class SelectTool implements ToolController {
   onPointerMove(e: PointerEvent) {
     const cm = CanvasManager.getInstance();
     const p = cm.toCanvasPoint(e);
+
+    if (this.resizing && this.resizeHandle && this.initialBounds) {
+      this.resizeSelection(p);
+      return;
+    }
 
     // 🟦 marquee
     if (this.isMarquee && this.marqueeStart) {
@@ -165,6 +202,10 @@ export class SelectTool implements ToolController {
     }
 
     this.dragging = false;
+    this.resizing = false;
+    this.resizeHandle = null;
+    this.initialBounds = null;
+    this.initialShapes.clear();
     this.isMarquee = false;
     this.marqueeRect = null;
 
@@ -192,4 +233,270 @@ export class SelectTool implements ToolController {
       a.y + a.h < b.y
     );
   }
+
+  private getHandleHit(
+    p: Point,
+    bounds: { x: number; y: number; w: number; h: number },
+  ): ResizeHandle | null {
+    const padding = SELECTION_BOX_PADDING;
+    const box = {
+      x: bounds.x - padding,
+      y: bounds.y - padding,
+      w: bounds.w + padding * 2,
+      h: bounds.h + padding * 2,
+    };
+    const size = SELECTION_HANDLE_SIZE;
+    const half = size / 2;
+    const handles: { id: ResizeHandle; x: number; y: number }[] = [
+      { id: "nw", x: box.x, y: box.y },
+      { id: "n", x: box.x + box.w / 2, y: box.y },
+      { id: "ne", x: box.x + box.w, y: box.y },
+      { id: "e", x: box.x + box.w, y: box.y + box.h / 2 },
+      { id: "se", x: box.x + box.w, y: box.y + box.h },
+      { id: "s", x: box.x + box.w / 2, y: box.y + box.h },
+      { id: "sw", x: box.x, y: box.y + box.h },
+      { id: "w", x: box.x, y: box.y + box.h / 2 },
+    ];
+
+    for (const handle of handles) {
+      if (
+        p.x >= handle.x - half &&
+        p.x <= handle.x + half &&
+        p.y >= handle.y - half &&
+        p.y <= handle.y + half
+      ) {
+        return handle.id;
+      }
+    }
+
+    return null;
+  }
+
+  private resizeSelection(p: Point) {
+    const { updateShape, selectedShapeIds } = useEditorStore.getState();
+    const bounds = this.initialBounds;
+    const handle = this.resizeHandle;
+
+    if (!bounds || !handle) return;
+
+    const { anchor, sx, sy } = this.getResizedBounds(bounds, handle, p);
+
+    for (const id of selectedShapeIds) {
+      const original = this.initialShapes.get(id);
+      if (!original) continue;
+
+      updateShape(id, (shape) => this.scaleShape(original, anchor, sx, sy));
+    }
+  }
+
+  private getResizedBounds(
+    bounds: { x: number; y: number; w: number; h: number },
+    handle: ResizeHandle,
+    p: Point,
+  ) {
+    const minSize = SelectTool.MIN_SIZE;
+    let { x, y, w, h } = bounds;
+
+    let newX = x;
+    let newY = y;
+    let newW = w;
+    let newH = h;
+
+    switch (handle) {
+      case "nw":
+        newX = p.x;
+        newY = p.y;
+        newW = x + w - p.x;
+        newH = y + h - p.y;
+        break;
+      case "n":
+        newY = p.y;
+        newH = y + h - p.y;
+        break;
+      case "ne":
+        newY = p.y;
+        newW = p.x - x;
+        newH = y + h - p.y;
+        break;
+      case "e":
+        newW = p.x - x;
+        break;
+      case "se":
+        newW = p.x - x;
+        newH = p.y - y;
+        break;
+      case "s":
+        newH = p.y - y;
+        break;
+      case "sw":
+        newX = p.x;
+        newW = x + w - p.x;
+        newH = p.y - y;
+        break;
+      case "w":
+        newX = p.x;
+        newW = x + w - p.x;
+        break;
+    }
+
+    if (["n", "s"].includes(handle)) {
+      newX = x;
+      newW = w;
+    }
+
+    if (["e", "w"].includes(handle)) {
+      newY = y;
+      newH = h;
+    }
+
+    if (newW < minSize) {
+      newW = minSize;
+      newX = handle.includes("w") ? x + w - minSize : x;
+    }
+
+    if (newH < minSize) {
+      newH = minSize;
+      newY = handle.includes("n") ? y + h - minSize : y;
+    }
+
+    const sx = newW / w;
+    const sy = newH / h;
+    const anchor = this.getAnchorPoint(handle, bounds);
+
+    return { anchor, sx, sy };
+  }
+
+  private getAnchorPoint(
+    handle: ResizeHandle,
+    bounds: { x: number; y: number; w: number; h: number },
+  ) {
+    switch (handle) {
+      case "nw":
+        return { x: bounds.x + bounds.w, y: bounds.y + bounds.h };
+      case "n":
+        return { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h };
+      case "ne":
+        return { x: bounds.x, y: bounds.y + bounds.h };
+      case "e":
+        return { x: bounds.x, y: bounds.y + bounds.h / 2 };
+      case "se":
+        return { x: bounds.x, y: bounds.y };
+      case "s":
+        return { x: bounds.x + bounds.w / 2, y: bounds.y };
+      case "sw":
+        return { x: bounds.x + bounds.w, y: bounds.y };
+      case "w":
+        return { x: bounds.x + bounds.w, y: bounds.y + bounds.h / 2 };
+    }
+  }
+
+  private scalePoint(
+    point: Point,
+    anchor: Point,
+    sx: number,
+    sy: number,
+  ) {
+    return {
+      x: anchor.x + (point.x - anchor.x) * sx,
+      y: anchor.y + (point.y - anchor.y) * sy,
+    };
+  }
+
+  private scaleShape(
+    shape: Shape,
+    anchor: Point,
+    sx: number,
+    sy: number,
+  ): Shape {
+    switch (shape.type) {
+      case "rect":
+        return {
+          ...shape,
+          x: anchor.x + (shape.x - anchor.x) * sx,
+          y: anchor.y + (shape.y - anchor.y) * sy,
+          w: shape.w * sx,
+          h: shape.h * sy,
+        };
+      case "text": {
+        const topLeft = { x: shape.x, y: shape.y - shape.h };
+        const scaled = this.scalePoint(topLeft, anchor, sx, sy);
+        return {
+          ...shape,
+          x: scaled.x,
+          y: scaled.y + shape.h * sy,
+          w: shape.w * sx,
+          h: shape.h * sy,
+        };
+      }
+      case "circle": {
+        const center = this.scalePoint(
+          { x: shape.cx, y: shape.cy },
+          anchor,
+          sx,
+          sy,
+        );
+        const scale = (sx + sy) / 2;
+        return {
+          ...shape,
+          cx: center.x,
+          cy: center.y,
+          r: shape.r * scale,
+        };
+      }
+      case "line":
+      case "arrow":
+        return {
+          ...shape,
+          startPoint: this.scalePoint(shape.startPoint, anchor, sx, sy),
+          endPoint: this.scalePoint(shape.endPoint, anchor, sx, sy),
+        };
+      case "rhombus":
+        return {
+          ...shape,
+          top: this.scalePoint(shape.top, anchor, sx, sy),
+          right: this.scalePoint(shape.right, anchor, sx, sy),
+          bottom: this.scalePoint(shape.bottom, anchor, sx, sy),
+          left: this.scalePoint(shape.left, anchor, sx, sy),
+        };
+      case "pencil":
+        return {
+          ...shape,
+          points: shape.points.map((pt) =>
+            this.scalePoint(pt, anchor, sx, sy),
+          ),
+        };
+    }
+  }
+
+  private cloneShape(shape: Shape): Shape {
+    switch (shape.type) {
+      case "rect":
+      case "text":
+        return { ...shape };
+      case "circle":
+        return { ...shape };
+      case "line":
+      case "arrow":
+        return {
+          ...shape,
+          startPoint: { ...shape.startPoint },
+          endPoint: { ...shape.endPoint },
+        };
+      case "rhombus":
+        return {
+          ...shape,
+          top: { ...shape.top },
+          right: { ...shape.right },
+          bottom: { ...shape.bottom },
+          left: { ...shape.left },
+        };
+      case "pencil":
+        return {
+          ...shape,
+          points: shape.points.map((pt) => ({ ...pt })),
+        };
+    }
+  }
 }
+
+type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";

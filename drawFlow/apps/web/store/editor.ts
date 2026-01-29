@@ -5,14 +5,14 @@ import { ToolType } from "@/types/shape/shape";
 type EditorState = {
   // domain
   shapes: Shape[];
-  roomId: number | null;
+  roomId: string | null;
 
   // interaction
   currentTool: ToolType;
   selectedShapeIds: string[];
 
   // actions
-  setRoomId: (id: number) => void;
+  setRoomId: (id: string | null) => void;
   setShapes: (shapes: Shape[]) => void;
   setTool: (tool: ToolType) => void;
 

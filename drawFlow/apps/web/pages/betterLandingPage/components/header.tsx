@@ -10,6 +10,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -80,7 +81,12 @@ export function Header() {
                     View Demo
                   </Button>
                 </DialogTrigger>
+
                 <DialogContent className="sm:max-w-[800px]">
+                  <DialogHeader>
+                    <DialogTitle></DialogTitle>
+                    <DialogDescription></DialogDescription>
+                  </DialogHeader>
                   <div className="grid gap-4">
                     <Toolbar />
                     <CanvasComponent />
@@ -89,7 +95,7 @@ export function Header() {
                 </DialogContent>
               </form>
             </Dialog>
-            <Button size="sm" onClick={() => router.push("/auth")}>
+            <Button size="sm" onClick={() => router.push("/draw")}>
               Start Drawing
             </Button>
           </div>
