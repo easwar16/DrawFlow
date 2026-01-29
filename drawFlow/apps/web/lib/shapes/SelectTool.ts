@@ -25,6 +25,9 @@ export class SelectTool implements ToolController {
   private initialBounds: { x: number; y: number; w: number; h: number } | null =
     null;
   private initialShapes = new Map<string, Shape>();
+  private editingTextarea: HTMLTextAreaElement | null = null;
+  private editingId: string | null = null;
+  private previousSelection: string[] | null = null;
 
   private static MIN_SIZE = 12;
 
@@ -34,6 +37,7 @@ export class SelectTool implements ToolController {
     this.resizeHandle = null;
     this.initialBounds = null;
     this.initialShapes.clear();
+    this.cleanupTextEdit();
     this.isMarquee = false;
     this.marqueeRect = null;
     CanvasManager.getInstance().setSelectionRect(null);
@@ -50,6 +54,21 @@ export class SelectTool implements ToolController {
       useEditorStore.getState();
 
     const selectionBounds = cm.getCurrentSelectionBounds();
+    if (selectedShapeIds.length === 1) {
+      const selected = shapes.find((s) => s.id === selectedShapeIds[0]);
+      if (selected && (selected.type === "line" || selected.type === "arrow")) {
+        const lineHandle = this.getLineHandleHit(p, selected);
+        if (lineHandle) {
+          this.resizing = true;
+          this.resizeHandle = lineHandle;
+          this.initialBounds = selectionBounds;
+          this.initialShapes.clear();
+          this.initialShapes.set(selected.id, this.cloneShape(selected));
+          return;
+        }
+      }
+    }
+
     if (selectionBounds && selectedShapeIds.length === 1) {
       const handle = this.getHandleHit(p, selectionBounds);
       if (handle) {
@@ -97,6 +116,23 @@ export class SelectTool implements ToolController {
     }
 
     this.startMarquee(p);
+  }
+
+  onDoubleClick(e: MouseEvent) {
+    const cm = CanvasManager.getInstance();
+    const p = cm.toCanvasPoint({
+      clientX: e.clientX,
+      clientY: e.clientY,
+    } as PointerEvent);
+
+    const { shapes, setSelectedShapeIds } = useEditorStore.getState();
+    for (const shape of [...shapes].reverse()) {
+      if (shape.type !== "text") continue;
+      if (!hitTest(p, shape)) continue;
+      setSelectedShapeIds([shape.id]);
+      this.startTextEdit(shape);
+      return;
+    }
   }
 
   // -----------------------------
@@ -272,12 +308,33 @@ export class SelectTool implements ToolController {
     return null;
   }
 
+  private getLineHandleHit(p: Point, shape: Shape): ResizeHandle | null {
+    if (shape.type !== "line" && shape.type !== "arrow") return null;
+    const radius = SELECTION_HANDLE_SIZE / 2;
+    const start = shape.startPoint;
+    const end = shape.endPoint;
+
+    if (this.distance(p, start) <= radius) return "line-start";
+    if (this.distance(p, end) <= radius) return "line-end";
+
+    return null;
+  }
+
   private resizeSelection(p: Point) {
     const { updateShape, selectedShapeIds } = useEditorStore.getState();
     const bounds = this.initialBounds;
     const handle = this.resizeHandle;
 
     if (!bounds || !handle) return;
+
+    if (handle === "line-start" || handle === "line-end") {
+      for (const id of selectedShapeIds) {
+        const original = this.initialShapes.get(id);
+        if (!original) continue;
+        updateShape(id, () => this.adjustLineEndpoint(original, handle, p));
+      }
+      return;
+    }
 
     const { anchor, sx, sy } = this.getResizedBounds(bounds, handle, p);
 
@@ -337,6 +394,9 @@ export class SelectTool implements ToolController {
         newX = p.x;
         newW = x + w - p.x;
         break;
+      case "line-start":
+      case "line-end":
+        break;
     }
 
     if (["n", "s"].includes(handle)) {
@@ -387,7 +447,163 @@ export class SelectTool implements ToolController {
         return { x: bounds.x + bounds.w, y: bounds.y };
       case "w":
         return { x: bounds.x + bounds.w, y: bounds.y + bounds.h / 2 };
+      case "line-start":
+      case "line-end":
+        return { x: bounds.x, y: bounds.y };
     }
+  }
+
+  private adjustLineEndpoint(
+    shape: Shape,
+    handle: ResizeHandle,
+    point: Point,
+  ): Shape {
+    if (shape.type !== "line" && shape.type !== "arrow") return shape;
+
+    if (handle === "line-start") {
+      return {
+        ...shape,
+        startPoint: { x: point.x, y: point.y },
+      };
+    }
+
+    if (handle === "line-end") {
+      return {
+        ...shape,
+        endPoint: { x: point.x, y: point.y },
+      };
+    }
+
+    return shape;
+  }
+
+  private distance(a: Point, b: Point) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  private startTextEdit(shape: Shape) {
+    if (shape.type !== "text") return;
+    this.cleanupTextEdit();
+
+    const cm = CanvasManager.getInstance();
+    const canvas = (cm as any).canvas as HTMLCanvasElement;
+    const container = canvas.parentElement!;
+    container.style.position ||= "relative";
+    const { selectedShapeIds, setSelectedShapeIds } = useEditorStore.getState();
+    this.previousSelection = selectedShapeIds;
+    setSelectedShapeIds([]);
+    cm.render();
+    cm.setEditingTextId(shape.id);
+    cm.setEditingTextBounds(null);
+    cm.render();
+
+    const textarea = document.createElement("textarea");
+    const topLeft = cm.toScreenPoint({ x: shape.x, y: shape.y - shape.h });
+
+    textarea.value = shape.text;
+    textarea.style.position = "absolute";
+    textarea.style.left = `${topLeft.x}px`;
+    textarea.style.top = `${topLeft.y}px`;
+    textarea.style.fontSize = `${shape.fontSize * cm.getZoom()}px`;
+    textarea.style.fontFamily = shape.fontFamily;
+    textarea.style.border = "none";
+    textarea.style.background = "transparent";
+    textarea.style.color = shape.color;
+    textarea.style.resize = "none";
+    textarea.style.outline = "none";
+    textarea.style.boxShadow = "none";
+    textarea.style.padding = "2px 4px";
+    textarea.style.lineHeight = "1.2";
+    textarea.style.letterSpacing = "normal";
+    textarea.style.webkitTextFillColor = shape.color;
+    textarea.style.fontSmoothing = "antialiased";
+    textarea.style.webkitFontSmoothing = "antialiased";
+    textarea.style.overflow = "hidden";
+    textarea.style.boxSizing = "border-box";
+    textarea.spellcheck = false;
+    textarea.style.minWidth = "40px";
+    textarea.style.minHeight = `${shape.fontSize * cm.getZoom() + 6}px`;
+
+    const resizeTextarea = () => {
+      const ctx = (cm as any).ctx as CanvasRenderingContext2D;
+      ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
+      const text = textarea.value || " ";
+      const textWidth = ctx.measureText(text).width * cm.getZoom();
+      const nextWidth = Math.max(textWidth + 8, 40);
+      textarea.style.width = `${nextWidth}px`;
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    };
+
+    resizeTextarea();
+
+    container.appendChild(textarea);
+    textarea.focus();
+    const end = textarea.value.length;
+    textarea.setSelectionRange(end, end);
+
+    const commit = () => this.commitTextEdit(shape.id, textarea.value);
+    textarea.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+      }
+      if (event.key === "Escape") {
+        this.cleanupTextEdit(true);
+      }
+    });
+
+    textarea.addEventListener("input", resizeTextarea);
+    textarea.addEventListener("blur", commit);
+
+    this.editingTextarea = textarea;
+    this.editingId = shape.id;
+  }
+
+  private commitTextEdit(id: string, text: string) {
+    const { updateShape, removeShape, setSelectedShapeIds } =
+      useEditorStore.getState();
+
+    if (!text.trim()) {
+      removeShape(id);
+      setSelectedShapeIds([]);
+      this.cleanupTextEdit(false);
+      return;
+    }
+
+    const cm = CanvasManager.getInstance();
+    const ctx = (cm as any).ctx as CanvasRenderingContext2D;
+
+    updateShape(id, (shape) => {
+      if (shape.type !== "text") return shape;
+
+      ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
+      const w = ctx.measureText(text).width;
+      const h = shape.fontSize;
+
+      return { ...shape, text, w, h };
+    });
+
+    this.cleanupTextEdit(false);
+    setSelectedShapeIds([id]);
+    CanvasManager.getInstance().render();
+  }
+
+  private cleanupTextEdit(restoreSelection = false) {
+    if (this.editingTextarea) {
+      this.editingTextarea.remove();
+      this.editingTextarea = null;
+      this.editingId = null;
+    }
+    CanvasManager.getInstance().setEditingTextId(null);
+    CanvasManager.getInstance().setEditingTextBounds(null);
+    if (restoreSelection && this.previousSelection) {
+      useEditorStore.getState().setSelectedShapeIds(this.previousSelection);
+    }
+    this.previousSelection = null;
+    CanvasManager.getInstance().render();
   }
 
   private scalePoint(
@@ -499,4 +715,14 @@ export class SelectTool implements ToolController {
   }
 }
 
-type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+type ResizeHandle =
+  | "nw"
+  | "n"
+  | "ne"
+  | "e"
+  | "se"
+  | "s"
+  | "sw"
+  | "w"
+  | "line-start"
+  | "line-end";

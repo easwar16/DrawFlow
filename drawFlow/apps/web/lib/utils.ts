@@ -55,6 +55,7 @@ export interface ToolController {
   onDeactivate?(canvas: HTMLCanvasElement): void;
   onPointerMove(e: PointerEvent): void;
   onPointerUp(e: PointerEvent): void;
+  onDoubleClick?(e: MouseEvent): void;
 }
 type CirclePayload = {
   roomId: number;

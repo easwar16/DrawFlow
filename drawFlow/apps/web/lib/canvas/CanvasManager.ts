@@ -29,6 +29,9 @@ class CanvasManager {
 
   private panning = false;
   private panStart!: Point;
+  private editingTextId: string | null = null;
+  private editingTextBounds: { x: number; y: number; w: number; h: number } | null =
+    null;
 
   private constructor() {}
   private onWheel = (e: WheelEvent) => {
@@ -279,7 +282,7 @@ class CanvasManager {
     h: number;
   }) {
     const size = SELECTION_HANDLE_SIZE;
-    const half = size / 2;
+    const radius = size / 2;
     const points = [
       { x: bounds.x, y: bounds.y },
       { x: bounds.x + bounds.w / 2, y: bounds.y },
@@ -295,11 +298,35 @@ class CanvasManager {
     this.ctx.setLineDash([]);
     this.ctx.fillStyle = "#ffffff";
     this.ctx.strokeStyle = "#60a5fa";
-    this.ctx.lineWidth = 1;
+    this.ctx.lineWidth = 1.5;
 
     for (const p of points) {
-      this.ctx.fillRect(p.x - half, p.y - half, size, size);
-      this.ctx.strokeRect(p.x - half, p.y - half, size, size);
+      this.ctx.beginPath();
+      this.ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.stroke();
+    }
+
+    this.ctx.restore();
+  }
+
+  private drawLineHandles(shape: Shape) {
+    if (shape.type !== "line" && shape.type !== "arrow") return;
+    const size = SELECTION_HANDLE_SIZE;
+    const radius = size / 2;
+    const points = [shape.startPoint, shape.endPoint];
+
+    this.ctx.save();
+    this.ctx.setLineDash([]);
+    this.ctx.fillStyle = "#ffffff";
+    this.ctx.strokeStyle = "#60a5fa";
+    this.ctx.lineWidth = 1.5;
+
+    for (const p of points) {
+      this.ctx.beginPath();
+      this.ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.stroke();
     }
 
     this.ctx.restore();
@@ -481,8 +508,14 @@ class CanvasManager {
       finalShapes,
       selectedShapeIds,
     );
+    const singleSelected =
+      selectedShapeIds.length === 1
+        ? finalShapes.find((s) => s.id === selectedShapeIds[0])
+        : null;
 
-    if (selectionBounds) {
+    if (this.editingTextId) {
+      // keep selection hidden while editing text
+    } else if (selectionBounds) {
       this.drawSelectionBox(selectionBounds, selectedShapeIds.length === 1);
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -505,6 +538,9 @@ class CanvasManager {
       // if (selectedShapeIds.includes(shape.id)) {
       //   this.drawSelection(shape);
       // }
+    }
+    if (singleSelected) {
+      this.drawLineHandles(singleSelected);
     }
     const bounds = this.getSelectionBounds(finalShapes, selectedShapeIds);
 
@@ -661,6 +697,7 @@ class CanvasManager {
         this.ctx.strokeRect(shape.x, shape.y, shape.w, shape.h);
         break;
       case "text":
+        if (this.editingTextId === shape.id) return;
         this.ctx.save();
         this.ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
         this.ctx.fillStyle = shape.color;
@@ -767,6 +804,9 @@ class CanvasManager {
 
     this.activeTool?.onPointerUp(e);
   };
+  private onDoubleClick = (e: MouseEvent) => {
+    this.activeTool?.onDoubleClick?.(e);
+  };
 
   bindEvents() {
     this.canvas.addEventListener("pointerdown", (e) => {
@@ -776,6 +816,7 @@ class CanvasManager {
       }
       this.onPointerDown(e);
     });
+    this.canvas.addEventListener("dblclick", this.onDoubleClick);
     this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
     window.addEventListener("keydown", (e) => {
       if (e.code === "Space") {
@@ -804,6 +845,30 @@ class CanvasManager {
       x: (x - this.panX) / this.zoom,
       y: (y - this.panY) / this.zoom,
     };
+  }
+
+  toScreenPoint(point: Point) {
+    return {
+      x: point.x * this.zoom + this.panX,
+      y: point.y * this.zoom + this.panY,
+    };
+  }
+
+  getZoom() {
+    return this.zoom;
+  }
+
+  setEditingTextId(id: string | null) {
+    this.editingTextId = id;
+    if (!id) {
+      this.editingTextBounds = null;
+    }
+    this.render();
+  }
+
+  setEditingTextBounds(bounds: { x: number; y: number; w: number; h: number } | null) {
+    this.editingTextBounds = bounds;
+    this.render();
   }
 
   setActiveTool(tool: ToolController | null) {
