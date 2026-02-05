@@ -273,24 +273,15 @@ importers:
 
   apps/websocket:
     dependencies:
-      '@repo/db-schema':
-        specifier: workspace:*
-        version: link:../../packages/db-schema
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
-      '@types/jsonwebtoken':
-        specifier: ^9.0.10
-        version: 9.0.10
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
-      jsonwebtoken:
-        specifier: ^9.0.3
-        version: 9.0.3
       redis:
         specifier: ^4.7.1
         version: 4.7.1
