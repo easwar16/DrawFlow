@@ -319,13 +319,13 @@ export default function PropertiesPanel() {
                 aria-label={`Stroke width ${value}`}
                 className={`h-10 w-12 rounded-lg border ${
                   strokeWidth === value
-                    ? "bg-[#c7f3e2] border-transparent"
-                    : "bg-gray-100 dark:bg-gray-800 border-transparent"
+                    ? "bg-[#c7f3e2] border-transparent text-black"
+                    : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
                 }`}
                 onClick={() => updateStrokeWidth(value)}
               >
                 <span
-                  className="block mx-auto rounded-full bg-gray-900 dark:bg-gray-100"
+                  className="block mx-auto rounded-full bg-current"
                   style={{ height: Math.max(2, value), width: value >= 6 ? 18 : 14 }}
                 />
               </button>
@@ -345,15 +345,15 @@ export default function PropertiesPanel() {
                 aria-label={option.label}
                 className={`h-10 w-12 rounded-lg border ${
                   strokeStyle === option.id
-                    ? "bg-[#c7f3e2] border-transparent"
-                    : "bg-gray-100 dark:bg-gray-800 border-transparent"
+                    ? "bg-[#c7f3e2] border-transparent text-black"
+                    : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
                 }`}
                 onClick={() =>
                   updateStrokeStyle(option.id as "solid" | "dashed" | "dotted")
                 }
               >
                 <span
-                  className={`block mx-auto w-5 ${option.className} dark:border-gray-100`}
+                  className={`block mx-auto w-5 ${option.className} border-current`}
                 />
               </button>
             ))}
@@ -372,8 +372,8 @@ export default function PropertiesPanel() {
                 aria-label={option.label}
                 className={`h-10 w-12 rounded-lg border ${
                   sloppiness === option.id
-                    ? "bg-[#c7f3e2] border-transparent"
-                    : "bg-gray-100 dark:bg-gray-800 border-transparent"
+                    ? "bg-[#c7f3e2] border-transparent text-black"
+                    : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
                 }`}
                 onClick={() => updateSloppiness(option.id as 0 | 1 | 2)}
               >
@@ -405,8 +405,8 @@ export default function PropertiesPanel() {
                 aria-label={option.label}
                 className={`h-10 w-12 rounded-lg border ${
                   edgeStyle === option.id
-                    ? "bg-[#c7f3e2] border-transparent"
-                    : "bg-gray-100 dark:bg-gray-800 border-transparent"
+                    ? "bg-[#c7f3e2] border-transparent text-black"
+                    : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
                 }`}
                 onClick={() => updateEdgeStyle(option.id as "sharp" | "round")}
               >

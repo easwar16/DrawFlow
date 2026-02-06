@@ -2,11 +2,12 @@ import { Point, ToolType } from "@/types/shape/shape";
 import type { Shape, ToolController } from "../utils";
 import { DEFAULT_SHAPE_STYLE } from "../utils";
 import { useEditorStore } from "@/store/editor";
-
-export const SELECTION_BOX_PADDING = 6;
-export const SELECTION_HANDLE_SIZE = 8;
-export const ROTATE_HANDLE_OFFSET = 18;
-export const ROTATE_HANDLE_RADIUS = 6;
+import {
+  ROTATE_HANDLE_OFFSET,
+  ROTATE_HANDLE_RADIUS,
+  SELECTION_BOX_PADDING,
+  SELECTION_HANDLE_SIZE,
+} from "./constants";
 
 class CanvasManager {
   private static instance: CanvasManager | null = null;

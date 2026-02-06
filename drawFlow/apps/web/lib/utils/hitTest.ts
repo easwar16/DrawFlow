@@ -1,3 +1,5 @@
+"use client";
+
 import { Shape } from "../utils";
 import { Point } from "@/types/shape/shape";
 

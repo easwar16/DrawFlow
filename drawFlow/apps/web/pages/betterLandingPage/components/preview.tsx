@@ -2,10 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function Preview() {
+export default function Preview() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [themeVersion, setThemeVersion] = useState(0);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setThemeVersion((prev) => prev + 1);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -248,7 +257,7 @@ export function Preview() {
 
       // Draw shapes with staggered timing
       drawHandDrawnRect(60, 80, 120, 80, progress * 3, darkColor, lightFill);
-      drawText("Idea", 120, 125, progress * 3, textColor);
+      drawText("Step 1", 120, 125, progress * 3, textColor);
 
       drawArrow(190, 120, 260, 120, (progress - 0.15) * 3, primaryColor);
 
@@ -261,12 +270,12 @@ export function Preview() {
         darkColor,
         lightFill,
       );
-      drawText("Design", 340, 125, (progress - 0.3) * 3, textColor);
+      drawText("Step 2", 340, 125, (progress - 0.3) * 3, textColor);
 
       drawArrow(410, 120, 480, 120, (progress - 0.45) * 3, primaryColor);
 
       drawCircle(540, 120, 50, (progress - 0.6) * 3, darkColor, lightFill);
-      drawText("Build", 540, 125, (progress - 0.6) * 3, textColor);
+      drawText("Step 3", 540, 125, (progress - 0.6) * 3, textColor);
 
       // Second row
       drawArrow(540, 180, 540, 240, (progress - 0.75) * 3, primaryColor);
@@ -280,7 +289,7 @@ export function Preview() {
         darkColor,
         "rgba(34, 197, 94, 0.2)",
       );
-      drawText("Ship!", 540, 295, (progress - 0.85) * 3, textColor);
+      drawText("Step 4", 540, 295, (progress - 0.85) * 3, textColor);
 
       if (progress < 1.2) {
         rafId = requestAnimationFrame(animate);
@@ -293,7 +302,7 @@ export function Preview() {
       isActive = false;
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isVisible]);
+  }, [isVisible, themeVersion]);
 
   return (
     <section id="preview" className="py-24 sm:py-32">

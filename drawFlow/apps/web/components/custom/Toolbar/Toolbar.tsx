@@ -21,9 +21,9 @@ export default function Toolbar() {
   return (
     <div
       className="fixed top-4 left-1/2 -translate-x-1/2
-    flex gap-2 items-center
+    flex gap-1.5 items-center
     bg-white/90 dark:bg-[#1f1f1f]/90 backdrop-blur-md
-    rounded-xl px-3 py-2
+    rounded-xl px-2.5 py-1.5
     shadow-lg shadow-black/10 dark:shadow-black/40
     ring-1 ring-black/5 dark:ring-white/10
     z-50"
@@ -36,7 +36,7 @@ export default function Toolbar() {
       >
         {isToolLocked ? <MdLockOutline /> : <MdLockOpen />}
       </ToolButton>
-      <div className="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-1" />
+      <div className="h-5 w-px bg-gray-300 dark:bg-gray-700 mx-0.5" />
       <ToolButton
         label="hand"
         active={currentTool === "hand"}
@@ -139,7 +139,7 @@ function ToolButton({
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-4 rounded outline-none focus-visible:outline-none focus-visible:ring-0 ${
+      className={`px-3 py-3 rounded outline-none focus-visible:outline-none focus-visible:ring-0 ${
         active
           ? "bg-[#c7f3e2] text-black dark:bg-[#2f3f3a] dark:text-[#c7f3e2]"
           : "bg-transparent text-black dark:text-gray-100"
@@ -148,10 +148,10 @@ function ToolButton({
       aria-label={title}
       aria-pressed={active}
     >
-      <span className="relative flex items-center justify-center">
+      <span className="relative flex items-center justify-center text-[15px]">
         {children}
         {shortcut ? (
-          <span className="absolute -bottom-2 -right-2 text-[9px] leading-none text-gray-600 dark:text-gray-400">
+          <span className="absolute -bottom-1.5 -right-1.5 text-[8px] leading-none text-gray-600 dark:text-gray-400">
             {shortcut}
           </span>
         ) : null}

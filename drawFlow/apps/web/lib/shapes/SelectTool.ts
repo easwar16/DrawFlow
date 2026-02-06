@@ -1,11 +1,12 @@
 import { Shape, ToolController } from "../utils";
 import { useEditorStore } from "@/store/editor";
-import CanvasManager, {
-  SELECTION_BOX_PADDING,
-  SELECTION_HANDLE_SIZE,
+import CanvasManager from "../canvas/CanvasManager";
+import {
   ROTATE_HANDLE_OFFSET,
   ROTATE_HANDLE_RADIUS,
-} from "../canvas/CanvasManager";
+  SELECTION_BOX_PADDING,
+  SELECTION_HANDLE_SIZE,
+} from "../canvas/constants";
 import { Point } from "@/types/shape/shape";
 import { hitTest } from "../utils/hitTest";
 
