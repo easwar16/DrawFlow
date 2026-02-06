@@ -16,6 +16,8 @@ Landing page:
 Draw page:
 
 ![Canvas workspace](docs/screenshots/draw-canvas.png)
+![Text toolbar](docs/screenshots/text-toolbar.png)
+![Properties panel](docs/screenshots/properties-panel.png)
 ![Live collaboration dialog](docs/screenshots/draw-share.png)
 ![Export dialog](docs/screenshots/draw-export.png)
 ![Help & shortcuts](docs/screenshots/help-shortcuts.png)
