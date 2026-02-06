@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getUsername, setUsername } from "@/lib/storage";
+import { wsManager } from "@/lib/websocket/websocket";
 
 export function ActiveSession({
   roomId,
@@ -15,6 +16,15 @@ export function ActiveSession({
   isOwner: boolean;
 }) {
   const [username, setLocalUsername] = useState("");
+  const ensureCursorId = () => {
+    if (typeof window === "undefined") return "self";
+    const key = "drawflow:cursorId";
+    const existing = sessionStorage.getItem(key);
+    if (existing) return existing;
+    const id = `cursor-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(key, id);
+    return id;
+  };
 
   useEffect(() => {
     const stored = getUsername();
@@ -22,8 +32,13 @@ export function ActiveSession({
   }, []);
 
   useEffect(() => {
-    if (username) setUsername(username);
-  }, [username]);
+    if (!username) return;
+    setUsername(username);
+    if (roomId && wsManager.isConnected()) {
+      const clientId = ensureCursorId();
+      wsManager.send({ type: "user_update", roomId, username, clientId });
+    }
+  }, [roomId, username]);
 
 
   const url =

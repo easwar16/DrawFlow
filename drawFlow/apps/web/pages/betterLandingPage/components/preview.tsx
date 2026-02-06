@@ -240,11 +240,15 @@ export function Preview() {
 
       const primaryColor = "#22c55e";
       const darkColor = "#1f2937";
+      const textColor =
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--preview-text")
+          .trim() || darkColor;
       const lightFill = "rgba(34, 197, 94, 0.1)";
 
       // Draw shapes with staggered timing
       drawHandDrawnRect(60, 80, 120, 80, progress * 3, darkColor, lightFill);
-      drawText("Idea", 120, 125, progress * 3, darkColor);
+      drawText("Idea", 120, 125, progress * 3, textColor);
 
       drawArrow(190, 120, 260, 120, (progress - 0.15) * 3, primaryColor);
 
@@ -257,12 +261,12 @@ export function Preview() {
         darkColor,
         lightFill,
       );
-      drawText("Design", 340, 125, (progress - 0.3) * 3, darkColor);
+      drawText("Design", 340, 125, (progress - 0.3) * 3, textColor);
 
       drawArrow(410, 120, 480, 120, (progress - 0.45) * 3, primaryColor);
 
       drawCircle(540, 120, 50, (progress - 0.6) * 3, darkColor, lightFill);
-      drawText("Build", 540, 125, (progress - 0.6) * 3, darkColor);
+      drawText("Build", 540, 125, (progress - 0.6) * 3, textColor);
 
       // Second row
       drawArrow(540, 180, 540, 240, (progress - 0.75) * 3, primaryColor);
@@ -276,7 +280,7 @@ export function Preview() {
         darkColor,
         "rgba(34, 197, 94, 0.2)",
       );
-      drawText("Ship!", 540, 295, (progress - 0.85) * 3, darkColor);
+      drawText("Ship!", 540, 295, (progress - 0.85) * 3, textColor);
 
       if (progress < 1.2) {
         rafId = requestAnimationFrame(animate);

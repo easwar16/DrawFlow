@@ -34,13 +34,20 @@ export class ArrowTool implements ToolController {
 
     this.drawing = false;
 
-    useEditorStore.getState().addShape({
+    const { addShape, currentStyle } = useEditorStore.getState();
+    addShape({
       id: crypto.randomUUID(),
       type: "arrow",
       startPoint: { ...this.startPoint },
       endPoint: { ...this.endPoint },
+      controlPoint: {
+        x: (this.startPoint.x + this.endPoint.x) / 2,
+        y: (this.startPoint.y + this.endPoint.y) / 2,
+      },
+      ...currentStyle,
     });
 
     CanvasManager.getInstance().clearAllDrafts();
+    useEditorStore.getState().maybeResetToolAfterAction();
   }
 }

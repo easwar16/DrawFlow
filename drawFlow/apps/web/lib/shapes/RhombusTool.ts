@@ -57,6 +57,7 @@ export class RhombusTool implements ToolController {
     this.bottom = { x: cx, y: cy + ry };
     this.left = { x: cx - rx, y: cy };
 
+    const { currentStyle } = useEditorStore.getState();
     const rhom = {
       id: crypto.randomUUID(),
       type: "rhombus" as const,
@@ -64,10 +65,12 @@ export class RhombusTool implements ToolController {
       bottom: this.bottom,
       left: this.left,
       right: this.right,
+      ...currentStyle,
     };
 
     useEditorStore.getState().addShape(rhom);
 
     cm.clearAllDrafts();
+    useEditorStore.getState().maybeResetToolAfterAction();
   }
 }

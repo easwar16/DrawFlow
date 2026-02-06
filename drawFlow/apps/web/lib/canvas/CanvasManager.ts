@@ -1,9 +1,12 @@
-import { Point } from "@/types/shape/shape";
+import { Point, ToolType } from "@/types/shape/shape";
 import type { Shape, ToolController } from "../utils";
+import { DEFAULT_SHAPE_STYLE } from "../utils";
 import { useEditorStore } from "@/store/editor";
 
 export const SELECTION_BOX_PADDING = 6;
 export const SELECTION_HANDLE_SIZE = 8;
+export const ROTATE_HANDLE_OFFSET = 18;
+export const ROTATE_HANDLE_RADIUS = 6;
 
 class CanvasManager {
   private static instance: CanvasManager | null = null;
@@ -272,6 +275,36 @@ class CanvasManager {
     this.ctx.restore();
   }
 
+  private drawRotateHandle(bounds: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }) {
+    const padding = SELECTION_BOX_PADDING;
+    const centerX = bounds.x + bounds.w / 2;
+    const startY = bounds.y - padding;
+    const handleY = startY - ROTATE_HANDLE_OFFSET;
+
+    this.ctx.save();
+    this.ctx.setLineDash([]);
+    this.ctx.strokeStyle = "#60a5fa";
+    this.ctx.fillStyle = "#ffffff";
+    this.ctx.lineWidth = 1.5;
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(centerX, startY);
+    this.ctx.lineTo(centerX, handleY);
+    this.ctx.stroke();
+
+    this.ctx.beginPath();
+    this.ctx.arc(centerX, handleY, ROTATE_HANDLE_RADIUS, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    this.ctx.restore();
+  }
+
   private drawSelectionHandles(bounds: {
     x: number;
     y: number;
@@ -311,7 +344,10 @@ class CanvasManager {
     if (shape.type !== "line" && shape.type !== "arrow") return;
     const size = SELECTION_HANDLE_SIZE;
     const radius = size / 2;
-    const points = [shape.startPoint, shape.endPoint];
+    const points =
+      shape.type === "arrow" && shape.controlPoint
+        ? [shape.startPoint, this.getArrowMidPoint(shape), shape.endPoint]
+        : [shape.startPoint, shape.endPoint];
 
     this.ctx.save();
     this.ctx.setLineDash([]);
@@ -329,6 +365,26 @@ class CanvasManager {
     this.ctx.restore();
   }
 
+  private getArrowMidPoint(shape: Extract<Shape, { type: "arrow" }>) {
+    const control =
+      shape.controlPoint ?? {
+        x: (shape.startPoint.x + shape.endPoint.x) / 2,
+        y: (shape.startPoint.y + shape.endPoint.y) / 2,
+      };
+    const t = 0.5;
+    const mt = 1 - t;
+    return {
+      x:
+        mt * mt * shape.startPoint.x +
+        2 * mt * t * control.x +
+        t * t * shape.endPoint.x,
+      y:
+        mt * mt * shape.startPoint.y +
+        2 * mt * t * control.y +
+        t * t * shape.endPoint.y,
+    };
+  }
+
   private getShapeBounds(shape: Shape) {
     switch (shape.type) {
       case "rect":
@@ -342,6 +398,20 @@ class CanvasManager {
         };
       case "line":
       case "arrow": {
+        const points = [
+          shape.startPoint,
+          shape.endPoint,
+          shape.controlPoint ?? shape.startPoint,
+        ];
+        const xs = points.map((p) => p.x);
+        const ys = points.map((p) => p.y);
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        const maxX = Math.max(...xs);
+        const maxY = Math.max(...ys);
+        return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+      }
+      case "line": {
         const x = Math.min(shape.startPoint.x, shape.endPoint.x);
         const y = Math.min(shape.startPoint.y, shape.endPoint.y);
         const w = Math.abs(shape.startPoint.x - shape.endPoint.x);
@@ -532,17 +602,28 @@ class CanvasManager {
       // }
     }
     if (!this.editingTextId && selectionBounds) {
-      this.drawSelectionBox(selectionBounds, selectedShapeIds.length === 1);
+      const showHandles =
+        selectedShapeIds.length === 1 &&
+        singleSelected &&
+        singleSelected.type !== "line" &&
+        singleSelected.type !== "arrow";
+      this.drawSelectionBox(selectionBounds, showHandles);
+      if (selectedShapeIds.length === 1) {
+        this.drawRotateHandle(selectionBounds);
+      }
     }
     if (!this.editingTextId && singleSelected) {
       this.drawLineHandles(singleSelected);
     }
     this.ctx.restore();
+    const previewStroke =
+      useEditorStore.getState().currentStyle.stroke ?? DEFAULT_SHAPE_STYLE.stroke;
+
     if (this.draftRect) {
       this.ctx.save();
 
       this.ctx.setLineDash([6, 4]); // dashed preview
-      this.ctx.strokeStyle = "#000000";
+      this.ctx.strokeStyle = previewStroke;
 
       this.ctx.strokeRect(
         this.draftRect.x,
@@ -557,7 +638,7 @@ class CanvasManager {
       this.ctx.save();
 
       this.ctx.setLineDash([6, 4]); // dashed preview
-      this.ctx.strokeStyle = "#000000";
+      this.ctx.strokeStyle = previewStroke;
 
       this.ctx.beginPath();
       this.ctx.moveTo(this.draftRhom.top.x!, this.draftRhom.top.y!);
@@ -582,7 +663,7 @@ class CanvasManager {
     if (this.draftPencil && this.draftPencil.length > 1) {
       this.ctx.save();
       this.ctx.setLineDash([6, 4]);
-      this.ctx.strokeStyle = "#000000";
+      this.ctx.strokeStyle = previewStroke;
 
       this.ctx.beginPath();
       this.ctx.moveTo(this.draftPencil[0]?.x!, this.draftPencil[0]?.y!);
@@ -601,7 +682,7 @@ class CanvasManager {
     ) {
       this.ctx.save();
       this.ctx.setLineDash([6, 4]);
-      this.ctx.strokeStyle = "#000000";
+      this.ctx.strokeStyle = previewStroke;
 
       this.ctx.beginPath();
       this.ctx.moveTo(this.draftLine.startPoint.x, this.draftLine.startPoint.y);
@@ -623,7 +704,7 @@ class CanvasManager {
       const angle = Math.atan2(y2 - y1, x2 - x1);
       this.ctx.save();
       this.ctx.setLineDash([6, 4]);
-      this.ctx.strokeStyle = "#000000";
+      this.ctx.strokeStyle = previewStroke;
 
       this.ctx.beginPath();
       this.ctx.moveTo(
@@ -665,7 +746,7 @@ class CanvasManager {
     if (this.draftCircle) {
       this.ctx.save();
       this.ctx.setLineDash([6, 4]);
-      this.ctx.strokeStyle = "#000";
+      this.ctx.strokeStyle = previewStroke;
 
       this.ctx.beginPath();
       this.ctx.arc(
@@ -685,85 +766,214 @@ class CanvasManager {
   }
 
   private drawShape(shape: Shape) {
+    const stroke = shape.stroke ?? DEFAULT_SHAPE_STYLE.stroke;
+    const fill = shape.fill ?? DEFAULT_SHAPE_STYLE.fill;
+    const strokeWidth = shape.strokeWidth ?? DEFAULT_SHAPE_STYLE.strokeWidth;
+    const opacity = shape.opacity ?? DEFAULT_SHAPE_STYLE.opacity;
+    const strokeStyle = shape.strokeStyle ?? DEFAULT_SHAPE_STYLE.strokeStyle;
+    const sloppiness = shape.sloppiness ?? DEFAULT_SHAPE_STYLE.sloppiness;
+    const edgeStyle = shape.edgeStyle ?? DEFAULT_SHAPE_STYLE.edgeStyle;
+    const rotation = shape.rotation ?? DEFAULT_SHAPE_STYLE.rotation;
+    const shouldFill =
+      typeof fill === "string" &&
+      fill !== "transparent" &&
+      fill !== "none" &&
+      fill !== "";
+
+    this.ctx.save();
+    this.ctx.globalAlpha = opacity;
+    this.ctx.strokeStyle = stroke;
+    this.ctx.lineWidth = strokeWidth;
+    this.ctx.lineJoin = edgeStyle === "round" ? "round" : "miter";
+    this.ctx.lineCap = sloppiness > 0 ? "round" : "butt";
+    switch (strokeStyle) {
+      case "dashed":
+        this.ctx.setLineDash([8, 6]);
+        break;
+      case "dotted":
+        this.ctx.setLineDash([2, 6]);
+        break;
+      default:
+        this.ctx.setLineDash([]);
+        break;
+    }
+
+    if (rotation !== 0) {
+      const bounds = this.getShapeBounds(shape);
+      if (bounds) {
+        const centerX = bounds.x + bounds.w / 2;
+        const centerY = bounds.y + bounds.h / 2;
+        this.ctx.translate(centerX, centerY);
+        this.ctx.rotate(rotation);
+        this.ctx.translate(-centerX, -centerY);
+      }
+    }
+
     switch (shape.type) {
       case "rect":
-        this.ctx.strokeRect(shape.x, shape.y, shape.w, shape.h);
+        this.drawWithSloppiness(shape, sloppiness, () => {
+          this.ctx.beginPath();
+          if (edgeStyle === "round") {
+            const radius = Math.min(8, Math.abs(shape.w) / 6, Math.abs(shape.h) / 6);
+            if (typeof this.ctx.roundRect === "function") {
+              this.ctx.roundRect(shape.x, shape.y, shape.w, shape.h, radius);
+            } else {
+              this.drawRoundedRectPath(shape.x, shape.y, shape.w, shape.h, radius);
+            }
+          } else {
+            this.ctx.rect(shape.x, shape.y, shape.w, shape.h);
+          }
+          if (shouldFill) {
+            this.ctx.fillStyle = fill;
+            this.ctx.fill();
+          }
+          this.ctx.stroke();
+        });
         break;
       case "text":
-        if (this.editingTextId === shape.id) return;
-        this.ctx.save();
+        if (this.editingTextId === shape.id) {
+          this.ctx.restore();
+          return;
+        }
         this.ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
-        this.ctx.fillStyle = shape.color;
+        this.ctx.fillStyle = shape.stroke ?? shape.color ?? stroke;
         this.ctx.fillText(shape.text, shape.x, shape.y);
-        this.ctx.restore();
         break;
       case "circle":
-        this.ctx.beginPath();
-        this.ctx.arc(shape.cx, shape.cy, shape.r, 0, Math.PI * 2);
-        this.ctx.stroke();
+        this.drawWithSloppiness(shape, sloppiness, () => {
+          this.ctx.beginPath();
+          this.ctx.arc(shape.cx, shape.cy, shape.r, 0, Math.PI * 2);
+          if (shouldFill) {
+            this.ctx.fillStyle = fill;
+            this.ctx.fill();
+          }
+          this.ctx.stroke();
+        });
         break;
 
       case "rhombus":
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.top.x!, shape.top.y!);
-        this.ctx.lineTo(shape.right.x!, shape.right.y!);
-        this.ctx.stroke();
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.right.x!, shape.right.y!);
-        this.ctx.lineTo(shape.bottom.x!, shape.bottom.y!);
-        this.ctx.stroke();
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.bottom.x!, shape.bottom.y!);
-        this.ctx.lineTo(shape.left.x!, shape.left.y!);
-        this.ctx.stroke();
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.left.x!, shape.left.y!);
-        this.ctx.lineTo(shape.top.x!, shape.top.y!);
-        this.ctx.stroke();
+        this.drawWithSloppiness(shape, sloppiness, () => {
+          this.ctx.beginPath();
+          this.ctx.moveTo(shape.top.x!, shape.top.y!);
+          this.ctx.lineTo(shape.right.x!, shape.right.y!);
+          this.ctx.lineTo(shape.bottom.x!, shape.bottom.y!);
+          this.ctx.lineTo(shape.left.x!, shape.left.y!);
+          this.ctx.lineTo(shape.top.x!, shape.top.y!);
+          this.ctx.closePath();
+          if (shouldFill) {
+            this.ctx.fillStyle = fill;
+            this.ctx.fill();
+          }
+          this.ctx.stroke();
+        });
         break;
       case "pencil":
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.points[0]?.x!, shape.points[0]?.y!);
-        for (const p of shape.points.slice(1)) {
-          this.ctx.lineTo(p.x, p.y);
-        }
-        this.ctx.stroke();
+        this.drawWithSloppiness(shape, sloppiness, () => {
+          this.ctx.beginPath();
+          this.ctx.moveTo(shape.points[0]?.x!, shape.points[0]?.y!);
+          for (const p of shape.points.slice(1)) {
+            this.ctx.lineTo(p.x, p.y);
+          }
+          this.ctx.stroke();
+        });
         break;
       case "line":
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.startPoint.x, shape.startPoint.y);
-        this.ctx.lineTo(shape.endPoint.x, shape.endPoint.y);
+        this.drawWithSloppiness(shape, sloppiness, () => {
+          this.ctx.beginPath();
+          this.ctx.moveTo(shape.startPoint.x, shape.startPoint.y);
+          this.ctx.lineTo(shape.endPoint.x, shape.endPoint.y);
 
-        this.ctx.stroke();
+          this.ctx.stroke();
+        });
         break;
       case "arrow":
-        const headLength = 12; // size of arrow head
-        const headAngle = Math.PI / 6; // 30°
-        const x1 = shape.startPoint.x,
-          x2 = shape.endPoint.x,
-          y1 = shape.startPoint.y,
-          y2 = shape.endPoint.y;
-        const angle = Math.atan2(y2 - y1, x2 - x1);
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.startPoint.x, shape.startPoint.y);
-        this.ctx.lineTo(shape.endPoint.x, shape.endPoint.y);
-        this.ctx.stroke();
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.endPoint.x, shape.endPoint.y);
-        this.ctx.lineTo(
-          x2 - headLength * Math.cos(angle - headAngle),
-          y2 - headLength * Math.sin(angle - headAngle),
-        );
-        this.ctx.stroke();
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.endPoint.x, shape.endPoint.y);
-        this.ctx.lineTo(
-          x2 - headLength * Math.cos(angle + headAngle),
-          y2 - headLength * Math.sin(angle + headAngle),
-        );
-        this.ctx.stroke();
+        this.drawWithSloppiness(shape, sloppiness, () => {
+          const headLength = 12; // size of arrow head
+          const headAngle = Math.PI / 6; // 30°
+          const x2 = shape.endPoint.x;
+          const y2 = shape.endPoint.y;
+          const control =
+            shape.controlPoint ??
+            ({
+              x: (shape.startPoint.x + shape.endPoint.x) / 2,
+              y: (shape.startPoint.y + shape.endPoint.y) / 2,
+            } as const);
+          const angle = Math.atan2(y2 - control.y, x2 - control.x);
+
+          this.ctx.beginPath();
+          this.ctx.moveTo(shape.startPoint.x, shape.startPoint.y);
+          if (shape.controlPoint) {
+            this.ctx.quadraticCurveTo(control.x, control.y, x2, y2);
+          } else {
+            this.ctx.lineTo(x2, y2);
+          }
+          this.ctx.stroke();
+          this.ctx.beginPath();
+          this.ctx.moveTo(x2, y2);
+          this.ctx.lineTo(
+            x2 - headLength * Math.cos(angle - headAngle),
+            y2 - headLength * Math.sin(angle - headAngle),
+          );
+          this.ctx.stroke();
+          this.ctx.beginPath();
+          this.ctx.moveTo(x2, y2);
+          this.ctx.lineTo(
+            x2 - headLength * Math.cos(angle + headAngle),
+            y2 - headLength * Math.sin(angle + headAngle),
+          );
+          this.ctx.stroke();
+        });
         break;
     }
+    this.ctx.restore();
+  }
+
+  private drawWithSloppiness(
+    shape: Shape,
+    sloppiness: number,
+    draw: () => void,
+  ) {
+    if (shape.type === "text" || sloppiness <= 0) {
+      draw();
+      return;
+    }
+    draw();
+    const jitter = sloppiness === 2 ? 3 : 1.5;
+    const offset = this.getJitterOffset(shape.id, jitter);
+    this.ctx.save();
+    this.ctx.translate(offset.x, offset.y);
+    draw();
+    this.ctx.restore();
+  }
+
+  private getJitterOffset(id: string, amount: number) {
+    let hash = 0;
+    for (let i = 0; i < id.length; i += 1) {
+      hash = (hash * 31 + id.charCodeAt(i)) | 0;
+    }
+    const rand = (seed: number) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+    const x = (rand(hash + 1) - 0.5) * 2 * amount;
+    const y = (rand(hash + 2) - 0.5) * 2 * amount;
+    return { x, y };
+  }
+
+  private drawRoundedRectPath(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number,
+  ) {
+    const radius = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2));
+    this.ctx.moveTo(x + radius, y);
+    this.ctx.arcTo(x + w, y, x + w, y + h, radius);
+    this.ctx.arcTo(x + w, y + h, x, y + h, radius);
+    this.ctx.arcTo(x, y + h, x, y, radius);
+    this.ctx.arcTo(x, y, x + w, y, radius);
+    this.ctx.closePath();
   }
   clear() {
     const bg = getComputedStyle(this.canvas).backgroundColor;
@@ -802,6 +1012,24 @@ class CanvasManager {
   };
 
   bindEvents() {
+    const isTypingTarget = (target: EventTarget | null) =>
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLElement && target.isContentEditable);
+
+    const toolShortcuts: Record<string, ToolType> = {
+      "1": "hand",
+      "2": "select",
+      "3": "rect",
+      "4": "rhombus",
+      "5": "circle",
+      "6": "arrow",
+      "7": "line",
+      "8": "pencil",
+      "9": "text",
+      "0": "eraser",
+    };
+
     this.canvas.addEventListener("pointerdown", (e) => {
       if (this.activeTool?.constructor.name === "TextTool") {
         e.preventDefault();
@@ -833,6 +1061,26 @@ class CanvasManager {
         if (e.key.toLowerCase() === "y") {
           useEditorStore.getState().redo();
           this.render();
+          e.preventDefault();
+          return;
+        }
+      }
+
+      const shouldHandleToolShortcut =
+        !isMeta &&
+        !e.altKey &&
+        !this.editingTextId &&
+        !isTypingTarget(e.target);
+      if (shouldHandleToolShortcut) {
+        const key = e.key.toLowerCase();
+        if (key === "q") {
+          useEditorStore.getState().toggleToolLocked();
+          e.preventDefault();
+          return;
+        }
+        const nextTool = toolShortcuts[key];
+        if (nextTool) {
+          useEditorStore.getState().setTool(nextTool);
           e.preventDefault();
           return;
         }
@@ -966,7 +1214,7 @@ class CanvasManager {
 
       const color = getCursorColor(cursor.userId ?? cursor.username ?? "user");
       // Draw cursor pointer (mouse arrow)
-      const s = 10 / this.zoom;
+      const s = 8.5 / this.zoom;
       const x = cursor.x;
       const y = cursor.y;
       this.ctx.beginPath();
@@ -991,8 +1239,10 @@ class CanvasManager {
 
       const textMetrics = this.ctx.measureText(cursor.username);
       const textWidth = textMetrics.width;
-      const textHeight = 16 / this.zoom;
-      const padding = 6 / this.zoom;
+      const textHeight = 14 / this.zoom;
+      const padding = 4 / this.zoom;
+      const gap = 2 / this.zoom;
+      const labelTop = cursor.y + s * 2.2 + gap;
 
       // Draw background rectangle for text
       this.ctx.fillStyle = "#ffffff";
@@ -1000,20 +1250,20 @@ class CanvasManager {
       this.ctx.lineWidth = 1 / this.zoom;
       this.ctx.fillRect(
         cursor.x - textWidth / 2 - padding,
-        cursor.y + 8 / this.zoom,
+        labelTop,
         textWidth + padding * 2,
         textHeight + padding
       );
       this.ctx.strokeRect(
         cursor.x - textWidth / 2 - padding,
-        cursor.y + 8 / this.zoom,
+        labelTop,
         textWidth + padding * 2,
         textHeight + padding
       );
 
       // Draw text
       this.ctx.fillStyle = color;
-      this.ctx.fillText(cursor.username, cursor.x, cursor.y + 8 / this.zoom + padding / 2);
+      this.ctx.fillText(cursor.username, cursor.x, labelTop + padding / 2);
     }
 
     this.ctx.restore();

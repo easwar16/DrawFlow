@@ -35,6 +35,7 @@ export class RectangleTool implements ToolController {
     const cm = CanvasManager.getInstance();
     const p = cm.toCanvasPoint(e);
 
+    const { currentStyle } = useEditorStore.getState();
     const rect = {
       id: crypto.randomUUID(),
       type: "rect" as const,
@@ -42,10 +43,12 @@ export class RectangleTool implements ToolController {
       y: Math.min(this.startY, p.y),
       w: Math.abs(p.x - this.startX),
       h: Math.abs(p.y - this.startY),
+      ...currentStyle,
     };
 
     useEditorStore.getState().addShape(rect);
 
     cm.clearAllDrafts();
+    useEditorStore.getState().maybeResetToolAfterAction();
   }
 }

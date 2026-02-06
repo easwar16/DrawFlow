@@ -106,7 +106,8 @@ export class TextTool implements ToolController {
     const w = ctx.measureText(text).width;
     const h = fontSize;
 
-    useEditorStore.getState().addShape({
+    const { addShape, currentStyle } = useEditorStore.getState();
+    addShape({
       id: crypto.randomUUID(),
       type: "text",
       x: this.x,
@@ -114,7 +115,15 @@ export class TextTool implements ToolController {
       text,
       fontSize,
       fontFamily,
-      color: "black",
+      color: currentStyle.stroke,
+      stroke: currentStyle.stroke,
+      fill: currentStyle.fill,
+      strokeWidth: currentStyle.strokeWidth,
+      opacity: currentStyle.opacity,
+      strokeStyle: currentStyle.strokeStyle,
+      sloppiness: currentStyle.sloppiness,
+      edgeStyle: currentStyle.edgeStyle,
+      rotation: currentStyle.rotation,
       w,
       h,
     });
@@ -128,5 +137,6 @@ export class TextTool implements ToolController {
       this.textarea = null;
     }
     CanvasManager.getInstance().setEditingTextBounds(null);
+    useEditorStore.getState().maybeResetToolAfterAction();
   }
 }

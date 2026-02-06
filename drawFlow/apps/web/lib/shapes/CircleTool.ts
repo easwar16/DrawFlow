@@ -45,15 +45,18 @@ export class CircleTool implements ToolController {
       return;
     }
 
+    const { currentStyle } = useEditorStore.getState();
     addShape({
       id: crypto.randomUUID(),
       type: "circle",
       cx: draft.cx,
       cy: draft.cy,
       r: draft.r,
+      ...currentStyle,
     });
 
     cm.clearDraftCircle();
+    useEditorStore.getState().maybeResetToolAfterAction();
     this.drawing = false;
   }
 }

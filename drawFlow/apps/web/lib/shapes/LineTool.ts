@@ -34,13 +34,16 @@ export class LineTool implements ToolController {
 
     this.drawing = false;
 
-    useEditorStore.getState().addShape({
+    const { addShape, currentStyle } = useEditorStore.getState();
+    addShape({
       id: crypto.randomUUID(),
       type: "line",
       startPoint: { ...this.startPoint },
       endPoint: { ...this.endPoint },
+      ...currentStyle,
     });
 
     CanvasManager.getInstance().clearAllDrafts();
+    useEditorStore.getState().maybeResetToolAfterAction();
   }
 }

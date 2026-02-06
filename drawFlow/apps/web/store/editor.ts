@@ -19,13 +19,29 @@ type EditorState = {
 
   // interaction
   currentTool: ToolType;
+  isToolLocked: boolean;
   selectedShapeIds: string[];
   cursors: Map<string, CursorPosition>; // userId -> cursor position
+  currentStyle: {
+    stroke: string;
+    fill: string;
+    strokeWidth: number;
+    opacity: number;
+    strokeStyle: "solid" | "dashed" | "dotted";
+    sloppiness: 0 | 1 | 2;
+    edgeStyle: "sharp" | "round";
+    rotation: number;
+  };
 
   // actions
   setRoomId: (id: string | null) => void;
   setShapes: (shapes: Shape[]) => void;
   setTool: (tool: ToolType) => void;
+  setToolLocked: (locked: boolean) => void;
+  toggleToolLocked: () => void;
+  maybeResetToolAfterAction: () => void;
+  setCurrentStyle: (style: Partial<EditorState["currentStyle"]>) => void;
+  syncStyleFromShape: (shape: Shape) => void;
 
   setSelectedShapeIds: (ids: string[]) => void;
   toggleSelectedShape: (id: string) => void;
@@ -51,8 +67,19 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   // interaction
   currentTool: "select",
+  isToolLocked: false,
   selectedShapeIds: [],
   cursors: new Map<string, CursorPosition>(),
+  currentStyle: {
+    stroke: "#000000",
+    fill: "transparent",
+    strokeWidth: 1,
+    opacity: 1,
+    strokeStyle: "solid",
+    sloppiness: 0,
+    edgeStyle: "sharp",
+    rotation: 0,
+  },
 
   // actions
 
@@ -94,7 +121,48 @@ export const useEditorStore = create<EditorState>((set) => ({
       };
     }),
 
-  setTool: (tool) => set({ currentTool: tool }),
+  setTool: (tool) =>
+    set((state) => {
+      if (
+        state.isToolLocked &&
+        state.currentTool !== tool &&
+        tool !== "hand"
+      ) {
+        return state;
+      }
+      return { currentTool: tool };
+    }),
+  setToolLocked: (locked) =>
+    set((state) => ({
+      isToolLocked: locked,
+      currentTool: locked ? "select" : state.currentTool,
+      selectedShapeIds: locked ? [] : state.selectedShapeIds,
+    })),
+  toggleToolLocked: () =>
+    set((state) => ({
+      isToolLocked: !state.isToolLocked,
+      currentTool: !state.isToolLocked ? "select" : state.currentTool,
+      selectedShapeIds: !state.isToolLocked ? [] : state.selectedShapeIds,
+    })),
+  maybeResetToolAfterAction: () =>
+    set((state) => state),
+  setCurrentStyle: (style) =>
+    set((state) => ({
+      currentStyle: { ...state.currentStyle, ...style },
+    })),
+  syncStyleFromShape: (shape) =>
+    set((state) => ({
+      currentStyle: {
+        stroke: shape.stroke ?? state.currentStyle.stroke,
+        fill: shape.fill ?? state.currentStyle.fill,
+        strokeWidth: shape.strokeWidth ?? state.currentStyle.strokeWidth,
+        opacity: shape.opacity ?? state.currentStyle.opacity,
+        strokeStyle: shape.strokeStyle ?? state.currentStyle.strokeStyle,
+        sloppiness: shape.sloppiness ?? state.currentStyle.sloppiness,
+        edgeStyle: shape.edgeStyle ?? state.currentStyle.edgeStyle,
+        rotation: shape.rotation ?? state.currentStyle.rotation,
+      },
+    })),
   removeShape: (id: string) =>
     set((state) => {
       const newShapes = state.shapes.filter((s) => s.id !== id);
@@ -330,6 +398,22 @@ export const useEditorStore = create<EditorState>((set) => ({
             useEditorStore.setState({ cursors: newCursors });
           }
           break;
+
+          case "user_updated":
+            if (message.roomId === state.roomId) {
+              const newCursors = new Map(state.cursors);
+              const cursorKey = message.clientId || message.userId;
+              const existing = newCursors.get(cursorKey);
+              if (existing) {
+                newCursors.set(cursorKey, {
+                  ...existing,
+                  username: message.username,
+                  lastSeen: Date.now(),
+                });
+                useEditorStore.setState({ cursors: newCursors });
+              }
+            }
+            break;
 
           case "user_joined":
             // User joined the room (we'll get their cursor when they move it)

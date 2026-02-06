@@ -3,6 +3,8 @@ import { useEditorStore } from "@/store/editor";
 import CanvasManager, {
   SELECTION_BOX_PADDING,
   SELECTION_HANDLE_SIZE,
+  ROTATE_HANDLE_OFFSET,
+  ROTATE_HANDLE_RADIUS,
 } from "../canvas/CanvasManager";
 import { Point } from "@/types/shape/shape";
 import { hitTest } from "../utils/hitTest";
@@ -25,6 +27,10 @@ export class SelectTool implements ToolController {
   private initialBounds: { x: number; y: number; w: number; h: number } | null =
     null;
   private initialShapes = new Map<string, Shape>();
+  private rotating = false;
+  private rotateStartAngle = 0;
+  private rotateStartRotation = 0;
+  private rotateCenter: Point | null = null;
   private editingTextarea: HTMLTextAreaElement | null = null;
   private editingId: string | null = null;
   private previousSelection: string[] | null = null;
@@ -37,6 +43,8 @@ export class SelectTool implements ToolController {
     this.resizeHandle = null;
     this.initialBounds = null;
     this.initialShapes.clear();
+    this.rotating = false;
+    this.rotateCenter = null;
     this.cleanupTextEdit();
     this.isMarquee = false;
     this.marqueeRect = null;
@@ -47,15 +55,29 @@ export class SelectTool implements ToolController {
   // Pointer Down
   // -----------------------------
   onPointerDown(e: PointerEvent) {
+    if (useEditorStore.getState().isToolLocked) {
+      return;
+    }
     const cm = CanvasManager.getInstance();
     const p = cm.toCanvasPoint(e);
 
-    const { shapes, selectedShapeIds, setSelectedShapeIds } =
+    const { shapes, selectedShapeIds, setSelectedShapeIds, syncStyleFromShape } =
       useEditorStore.getState();
 
     const selectionBounds = cm.getCurrentSelectionBounds();
     if (selectedShapeIds.length === 1) {
       const selected = shapes.find((s) => s.id === selectedShapeIds[0]);
+      if (selectionBounds && selected && this.getRotateHandleHit(p, selectionBounds)) {
+        const center = this.getBoundsCenter(selectionBounds);
+        this.rotating = true;
+        this.rotateCenter = center;
+        this.rotateStartAngle = Math.atan2(p.y - center.y, p.x - center.x);
+        this.rotateStartRotation = selected.rotation ?? 0;
+        return;
+      }
+      if (selected) {
+        syncStyleFromShape(selected);
+      }
       if (selected && (selected.type === "line" || selected.type === "arrow")) {
         const lineHandle = this.getLineHandleHit(p, selected);
         if (lineHandle) {
@@ -102,6 +124,7 @@ export class SelectTool implements ToolController {
       setSelectedShapeIds(
         e.shiftKey ? [...selectedShapeIds, shape.id] : [shape.id],
       );
+      syncStyleFromShape(shape);
 
       this.dragging = true;
       this.dragStart = p;
@@ -119,6 +142,9 @@ export class SelectTool implements ToolController {
   }
 
   onDoubleClick(e: MouseEvent) {
+    if (useEditorStore.getState().isToolLocked) {
+      return;
+    }
     const cm = CanvasManager.getInstance();
     const p = cm.toCanvasPoint({
       clientX: e.clientX,
@@ -139,8 +165,24 @@ export class SelectTool implements ToolController {
   // Pointer Move
   // -----------------------------
   onPointerMove(e: PointerEvent) {
+    if (useEditorStore.getState().isToolLocked) {
+      return;
+    }
     const cm = CanvasManager.getInstance();
     const p = cm.toCanvasPoint(e);
+
+    if (this.rotating && this.rotateCenter) {
+      const { selectedShapeIds, updateShape } = useEditorStore.getState();
+      if (selectedShapeIds.length === 1) {
+        const angle = Math.atan2(p.y - this.rotateCenter.y, p.x - this.rotateCenter.x);
+        const nextRotation = this.rotateStartRotation + (angle - this.rotateStartAngle);
+        updateShape(selectedShapeIds[0]!, (shape) => ({
+          ...shape,
+          rotation: nextRotation,
+        }));
+      }
+      return;
+    }
 
     if (this.resizing && this.resizeHandle && this.initialBounds) {
       this.resizeSelection(p);
@@ -190,6 +232,12 @@ export class SelectTool implements ToolController {
                 x: shape.endPoint.x + dx,
                 y: shape.endPoint.y + dy,
               },
+              controlPoint: shape.controlPoint
+                ? {
+                    x: shape.controlPoint.x + dx,
+                    y: shape.controlPoint.y + dy,
+                  }
+                : undefined,
             };
 
           case "rhombus":
@@ -218,7 +266,24 @@ export class SelectTool implements ToolController {
   // Pointer Up
   // -----------------------------
   onPointerUp() {
+    if (useEditorStore.getState().isToolLocked) {
+      this.dragging = false;
+      this.resizing = false;
+      this.resizeHandle = null;
+      this.initialBounds = null;
+      this.initialShapes.clear();
+      this.isMarquee = false;
+      this.marqueeRect = null;
+      CanvasManager.getInstance().setSelectionRect(null);
+      return;
+    }
     const cm = CanvasManager.getInstance();
+
+    if (this.rotating) {
+      this.rotating = false;
+      this.rotateCenter = null;
+      return;
+    }
 
     if (this.isMarquee && this.marqueeRect) {
       const { shapes, setSelectedShapeIds } = useEditorStore.getState();
@@ -308,6 +373,22 @@ export class SelectTool implements ToolController {
     return null;
   }
 
+  private getRotateHandleHit(
+    p: Point,
+    bounds: { x: number; y: number; w: number; h: number },
+  ) {
+    const padding = SELECTION_BOX_PADDING;
+    const centerX = bounds.x + bounds.w / 2;
+    const handleY = bounds.y - padding - ROTATE_HANDLE_OFFSET;
+    const dx = p.x - centerX;
+    const dy = p.y - handleY;
+    return Math.hypot(dx, dy) <= ROTATE_HANDLE_RADIUS;
+  }
+
+  private getBoundsCenter(bounds: { x: number; y: number; w: number; h: number }) {
+    return { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 };
+  }
+
   private getLineHandleHit(p: Point, shape: Shape): ResizeHandle | null {
     if (shape.type !== "line" && shape.type !== "arrow") return null;
     const radius = SELECTION_HANDLE_SIZE / 2;
@@ -315,6 +396,12 @@ export class SelectTool implements ToolController {
     const end = shape.endPoint;
 
     if (this.distance(p, start) <= radius) return "line-start";
+    if (
+      shape.type === "arrow" &&
+      this.distance(p, this.getArrowMidPoint(shape)) <= radius
+    ) {
+      return "arrow-control";
+    }
     if (this.distance(p, end) <= radius) return "line-end";
 
     return null;
@@ -327,7 +414,11 @@ export class SelectTool implements ToolController {
 
     if (!bounds || !handle) return;
 
-    if (handle === "line-start" || handle === "line-end") {
+    if (
+      handle === "line-start" ||
+      handle === "line-end" ||
+      handle === "arrow-control"
+    ) {
       for (const id of selectedShapeIds) {
         const original = this.initialShapes.get(id);
         if (!original) continue;
@@ -449,6 +540,7 @@ export class SelectTool implements ToolController {
         return { x: bounds.x + bounds.w, y: bounds.y + bounds.h / 2 };
       case "line-start":
       case "line-end":
+      case "arrow-control":
         return { x: bounds.x, y: bounds.y };
     }
   }
@@ -471,6 +563,18 @@ export class SelectTool implements ToolController {
       return {
         ...shape,
         endPoint: { x: point.x, y: point.y },
+      };
+    }
+
+    if (handle === "arrow-control" && shape.type === "arrow") {
+      const newControl = this.controlPointForMidPoint(
+        shape.startPoint,
+        point,
+        shape.endPoint,
+      );
+      return {
+        ...shape,
+        controlPoint: newControl,
       };
     }
 
@@ -665,6 +769,9 @@ export class SelectTool implements ToolController {
           ...shape,
           startPoint: this.scalePoint(shape.startPoint, anchor, sx, sy),
           endPoint: this.scalePoint(shape.endPoint, anchor, sx, sy),
+          controlPoint: shape.controlPoint
+            ? this.scalePoint(shape.controlPoint, anchor, sx, sy)
+            : undefined,
         };
       case "rhombus":
         return {
@@ -697,6 +804,7 @@ export class SelectTool implements ToolController {
           ...shape,
           startPoint: { ...shape.startPoint },
           endPoint: { ...shape.endPoint },
+          controlPoint: shape.controlPoint ? { ...shape.controlPoint } : undefined,
         };
       case "rhombus":
         return {
@@ -713,6 +821,33 @@ export class SelectTool implements ToolController {
         };
     }
   }
+
+  private getArrowMidPoint(shape: Extract<Shape, { type: "arrow" }>) {
+    const control =
+      shape.controlPoint ?? {
+        x: (shape.startPoint.x + shape.endPoint.x) / 2,
+        y: (shape.startPoint.y + shape.endPoint.y) / 2,
+      };
+    const t = 0.5;
+    const mt = 1 - t;
+    return {
+      x:
+        mt * mt * shape.startPoint.x +
+        2 * mt * t * control.x +
+        t * t * shape.endPoint.x,
+      y:
+        mt * mt * shape.startPoint.y +
+        2 * mt * t * control.y +
+        t * t * shape.endPoint.y,
+    };
+  }
+
+  private controlPointForMidPoint(start: Point, mid: Point, end: Point) {
+    return {
+      x: 2 * mid.x - 0.5 * (start.x + end.x),
+      y: 2 * mid.y - 0.5 * (start.y + end.y),
+    };
+  }
 }
 
 type ResizeHandle =
@@ -725,4 +860,5 @@ type ResizeHandle =
   | "sw"
   | "w"
   | "line-start"
-  | "line-end";
+  | "line-end"
+  | "arrow-control";

@@ -107,7 +107,6 @@ export default function CanvasComponent() {
 
     const canvas = canvasRef.current;
     const manager = CanvasManager.getInstance();
-    const username = getUsername();
     const selfId = selfCursorIdRef.current;
 
     const handlePointerMove = (e: PointerEvent) => {
@@ -131,6 +130,7 @@ export default function CanvasComponent() {
           Math.abs(lastPos.y - canvasPoint.y) > 2
         ) {
           if (roomId && wsManager.isConnected()) {
+            const username = getUsername();
             wsManager.send({
               type: "cursor_move",
               roomId,

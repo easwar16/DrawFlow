@@ -148,6 +148,22 @@ wss.on("connection", (socket, Request) => {
         await handleShapesSync(parsedData.roomId, parsedData.shapes);
       }
 
+      if (parsedData.type === "user_update") {
+        const user = Users.find((e) => e.ws === socket);
+        if (user && user.rooms.includes(parsedData.roomId)) {
+          if (parsedData.username) {
+            user.username = parsedData.username;
+          }
+          broadcastToRoom(parsedData.roomId, {
+            type: "user_updated",
+            roomId: parsedData.roomId,
+            userId: user.userId,
+            clientId: parsedData.clientId,
+            username: user.username,
+          });
+        }
+      }
+
       if (parsedData.type === "cursor_move") {
         const user = Users.find((e) => e.ws === socket);
         if (user && user.rooms.includes(parsedData.roomId)) {

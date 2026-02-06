@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Play } from "lucide-react";
+import { Menu, X, Play, Sun, Moon, Monitor } from "lucide-react";
 
 import { useRouter } from "next/navigation";
 import {
@@ -22,6 +22,26 @@ import ZoomControls from "@/components/custom/ZoomControls/ZoomControls";
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("drawflow:landingTheme");
+    if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+      setTheme(storedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else if (theme === "light") {
+      root.classList.remove("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("drawflow:landingTheme", theme);
+  }, [theme]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md">
@@ -69,6 +89,38 @@ export function Header() {
           </nav>
 
           <div className="hidden md:flex items-center gap-4">
+            <div className="flex items-center gap-1 rounded-full border border-border bg-muted/60 px-1 py-1">
+              <button
+                type="button"
+                className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                  theme === "light" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                }`}
+                onClick={() => setTheme("light")}
+                aria-label="Light theme"
+              >
+                <Sun className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                  theme === "dark" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                }`}
+                onClick={() => setTheme("dark")}
+                aria-label="Dark theme"
+              >
+                <Moon className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                  theme === "system" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                }`}
+                onClick={() => setTheme("system")}
+                aria-label="System theme"
+              >
+                <Monitor className="h-4 w-4" />
+              </button>
+            </div>
             <Dialog>
               <form>
                 <DialogTrigger asChild>

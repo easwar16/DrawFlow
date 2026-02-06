@@ -12,7 +12,10 @@ export function StartSession({ onStart }: { onStart: () => void }) {
         End-to-end encrypted and fully private.
       </p>
 
-      <Button onClick={onStart} className="mt-6 w-full">
+      <Button
+        onClick={onStart}
+        className="mt-6 w-full dark:bg-[#c7f3e2] dark:text-black dark:hover:bg-[#c7f3e2]"
+      >
         ▶ Start session
       </Button>
     </div>

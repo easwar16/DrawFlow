@@ -27,14 +27,14 @@ export default function LandingPage() {
             <div className="relative">
               <Pencil className="w-8 h-8 text-emerald-400 group-hover:text-pink-400 transition-colors duration-300 float" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-pink-400 bg-clip-text text-transparent">
+              <span className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-pink-400 bg-clip-text text-transparent">
               DrawFlow
             </span>
           </div>
           <div className="hidden md:flex items-center space-x-8">
             <Link
               href="/auth"
-              className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-pink-500 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105"
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-pink-500 text-[#c7f3e2] px-6 py-2.5 rounded-full hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105"
             >
               <span>Get Started</span>
               <ArrowRight className="w-4 h-4" />
@@ -54,7 +54,7 @@ export default function LandingPage() {
             </div>
 
             <h1 className="text-6xl md:text-7xl font-bold mb-6 leading-tight">
-              <span className="text-white">Sketch ideas.</span>
+              <span className="text-[#c7f3e2]">Sketch ideas.</span>
               <br />
               <span className="gradient-text">Collaborate instantly.</span>
             </h1>
@@ -65,13 +65,13 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-              <button className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-pink-500 text-white px-8 py-4 rounded-full hover:shadow-2xl hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 text-lg font-medium">
+              <button className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-pink-500 text-[#c7f3e2] px-8 py-4 rounded-full hover:shadow-2xl hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 text-lg font-medium">
                 <span>Start Drawing</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
               <Link
                 href="https://github.com/easwar16/DrawFlow"
-                className="flex items-center space-x-2 glass-effect text-white px-8 py-4 rounded-full hover:bg-white/10 transition-all duration-300 hover:scale-105 text-lg font-medium"
+                className="flex items-center space-x-2 glass-effect text-[#c7f3e2] px-8 py-4 rounded-full hover:bg-[#c7f3e2]/10 transition-all duration-300 hover:scale-105 text-lg font-medium"
               >
                 <Github className="w-5 h-5" />
                 <span>View on GitHub</span>
@@ -95,7 +95,7 @@ export default function LandingPage() {
         <section id="features" className="py-24 relative">
           <div className="container mx-auto px-6">
             <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <h2 className="text-4xl md:text-5xl font-bold text-[#c7f3e2] mb-4">
                 Everything you need to create
               </h2>
               <p className="text-xl text-gray-400 max-w-2xl mx-auto">
@@ -159,14 +159,14 @@ export default function LandingPage() {
                 return (
                   <div
                     key={i}
-                    className="group glass-effect p-8 rounded-2xl hover:bg-white/10 transition-all duration-300 hover:translate-y-[-8px]"
+                    className="group glass-effect p-8 rounded-2xl hover:bg-[#c7f3e2]/10 transition-all duration-300 hover:translate-y-[-8px]"
                   >
                     <div
                       className={`w-14 h-14 bg-gradient-to-br ${colors} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
                     >
                       <Icon className="w-7 h-7" />
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-3">
+                    <h3 className="text-xl font-bold text-[#c7f3e2] mb-3">
                       {feature.title}
                     </h3>
                     <p className="text-gray-400 leading-relaxed">
@@ -183,7 +183,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 to-pink-600/20 blur-3xl"></div>
           <div className="container mx-auto px-6 relative z-10">
             <div className="glass-effect rounded-3xl p-16 text-center border border-emerald-500/30">
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold text-[#c7f3e2] mb-6">
                 Ready to start creating?
               </h2>
               <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
@@ -192,7 +192,7 @@ export default function LandingPage() {
               </p>
               <Link
                 href="/auth"
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-pink-500 text-white px-8 py-4 rounded-full hover:shadow-2xl hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 text-lg font-medium"
+                className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-pink-500 text-[#c7f3e2] px-8 py-4 rounded-full hover:shadow-2xl hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 text-lg font-medium"
               >
                 <span>Get Started for Free</span>
                 <ArrowRight className="w-4 h-4" />

@@ -30,13 +30,16 @@ export class PencilTool implements ToolController {
 
     this.drawing = false;
 
-    useEditorStore.getState().addShape({
+    const { addShape, currentStyle } = useEditorStore.getState();
+    addShape({
       id: crypto.randomUUID(),
       type: "pencil",
       points: this.points,
+      ...currentStyle,
     });
 
     CanvasManager.getInstance().clearAllDrafts();
     this.points = [];
+    useEditorStore.getState().maybeResetToolAfterAction();
   }
 }

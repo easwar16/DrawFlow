@@ -8,6 +8,12 @@ export type ClientMessage =
   | { type: "shape_remove"; roomId: string; shapeId: string }
   | { type: "shapes_sync"; roomId: string; shapes: Shape[] }
   | {
+      type: "user_update";
+      roomId: string;
+      username: string;
+      clientId: string;
+    }
+  | {
       type: "cursor_move";
       roomId: string;
       x: number;
@@ -31,6 +37,13 @@ export type ServerMessage =
       username: string;
       x: number;
       y: number;
+    }
+  | {
+      type: "user_updated";
+      roomId: string;
+      userId: string;
+      clientId: string;
+      username: string;
     }
   | { type: "user_joined"; roomId: string; userId: string; username: string }
   | { type: "user_left"; roomId: string; userId: string }

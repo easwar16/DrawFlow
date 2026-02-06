@@ -4,27 +4,46 @@ import { Point } from "@/types/shape/shape";
 const HIT_TOLERANCE = 6; // pixels
 
 export function hitTest(point: Point, shape: Shape): boolean {
+  const rotation = shape.rotation ?? 0;
+  let testPoint = point;
+  if (rotation !== 0) {
+    const bounds = getShapeBounds(shape);
+    if (bounds) {
+      const center = { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 };
+      testPoint = rotatePoint(point, center, -rotation);
+    }
+  }
+
   switch (shape.type) {
     case "rect":
-      return hitRect(point, shape);
+      return hitRect(testPoint, shape);
     case "circle":
-      return hitCircle(point, shape);
+      return hitCircle(testPoint, shape);
     case "text":
-      return hitRect(point, {
+      return hitRect(testPoint, {
         x: shape.x,
         y: shape.y - shape.h,
         w: shape.w,
         h: shape.h,
       });
     case "line":
+      return hitLine(testPoint, shape.startPoint, shape.endPoint);
     case "arrow":
-      return hitLine(point, shape.startPoint, shape.endPoint);
+      if (shape.controlPoint) {
+        return hitQuadratic(
+          testPoint,
+          shape.startPoint,
+          shape.controlPoint,
+          shape.endPoint,
+        );
+      }
+      return hitLine(testPoint, shape.startPoint, shape.endPoint);
     case "rhombus":
-      return hitRhombus(point, shape);
+      return hitRhombus(testPoint, shape);
     case "pencil":
-      return hitPencil(point, shape.points);
+      return hitPencil(testPoint, shape.points);
     case "text":
-      return hitRect(point, {
+      return hitRect(testPoint, {
         x: shape.x,
         y: shape.y - shape.h,
         w: shape.w,
@@ -124,4 +143,99 @@ function hitLine(p: Point, a: Point, b: Point): boolean {
   const distance = Math.hypot(p.x - projX, p.y - projY);
 
   return distance <= HIT_TOLERANCE;
+}
+
+function hitQuadratic(p: Point, a: Point, c: Point, b: Point): boolean {
+  const steps = 20;
+  let prev = a;
+  for (let i = 1; i <= steps; i += 1) {
+    const t = i / steps;
+    const q = quadraticAt(a, c, b, t);
+    if (hitLine(p, prev, q)) return true;
+    prev = q;
+  }
+  return false;
+}
+
+function rotatePoint(p: Point, center: Point, angle: number): Point {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const dx = p.x - center.x;
+  const dy = p.y - center.y;
+  return {
+    x: center.x + dx * cos - dy * sin,
+    y: center.y + dx * sin + dy * cos,
+  };
+}
+
+function getShapeBounds(shape: Shape) {
+  switch (shape.type) {
+    case "rect":
+      return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+    case "text":
+      return {
+        x: shape.x,
+        y: shape.y - shape.h,
+        w: shape.w,
+        h: shape.h,
+      };
+    case "line":
+      return {
+        x: Math.min(shape.startPoint.x, shape.endPoint.x),
+        y: Math.min(shape.startPoint.y, shape.endPoint.y),
+        w: Math.abs(shape.startPoint.x - shape.endPoint.x),
+        h: Math.abs(shape.startPoint.y - shape.endPoint.y),
+      };
+    case "arrow": {
+      const points = [
+        shape.startPoint,
+        shape.endPoint,
+        shape.controlPoint ?? shape.startPoint,
+      ];
+      const xs = points.map((p) => p.x);
+      const ys = points.map((p) => p.y);
+      return {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        w: Math.max(...xs) - Math.min(...xs),
+        h: Math.max(...ys) - Math.min(...ys),
+      };
+    }
+    case "circle":
+      return {
+        x: shape.cx - shape.r,
+        y: shape.cy - shape.r,
+        w: shape.r * 2,
+        h: shape.r * 2,
+      };
+    case "rhombus": {
+      const xs = [shape.top.x!, shape.right.x!, shape.bottom.x!, shape.left.x!];
+      const ys = [shape.top.y!, shape.right.y!, shape.bottom.y!, shape.left.y!];
+      return {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        w: Math.max(...xs) - Math.min(...xs),
+        h: Math.max(...ys) - Math.min(...ys),
+      };
+    }
+    case "pencil": {
+      const xs = shape.points.map((p) => p.x);
+      const ys = shape.points.map((p) => p.y);
+      return {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        w: Math.max(...xs) - Math.min(...xs),
+        h: Math.max(...ys) - Math.min(...ys),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function quadraticAt(a: Point, c: Point, b: Point, t: number): Point {
+  const mt = 1 - t;
+  const x = mt * mt * a.x + 2 * mt * t * c.x + t * t * b.x;
+  const y = mt * mt * a.y + 2 * mt * t * c.y + t * t * b.y;
+  return { x, y };
 }
