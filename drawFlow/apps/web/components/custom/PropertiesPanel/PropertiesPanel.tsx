@@ -107,6 +107,14 @@ export default function PropertiesPanel() {
   const strokeStyle = primary.strokeStyle ?? DEFAULT_SHAPE_STYLE.strokeStyle;
   const sloppiness = primary.sloppiness ?? DEFAULT_SHAPE_STYLE.sloppiness;
   const edgeStyle = primary.edgeStyle ?? DEFAULT_SHAPE_STYLE.edgeStyle;
+  const isSingleType = selectedShapes.every((shape) => shape.type === primary.type);
+  const selectionType = isSingleType ? primary.type : "mixed";
+  const fillCapableTypes = new Set(["rect", "circle", "rhombus"]);
+  const showFillControls = selectionType === "mixed" || fillCapableTypes.has(selectionType);
+  const showEdgeControls = showFillControls;
+  const showStrokeStyleControls = selectionType !== "text";
+  const showStrokeWidthControls = selectionType !== "text";
+  const showSloppinessControls = selectionType !== "text";
 
   const applyToSelection = (updater: (shape: Shape) => Shape) => {
     for (const shape of selectedShapes) {
@@ -267,173 +275,202 @@ export default function PropertiesPanel() {
           </div>
         </div>
 
-        <Separator />
+        {showFillControls ? (
+          <>
+            <Separator />
 
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-200">Background</div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="No fill"
-              className={`${swatchClassBase} ${
-                fill === "transparent"
-                  ? "ring-2 ring-gray-900 dark:ring-gray-200"
-                  : "border-gray-200 dark:border-gray-700"
-              }`}
-              onClick={() => updateFill("transparent")}
-            >
-              <span className="block h-full w-full rounded-md bg-[linear-gradient(45deg,#e5e7eb_25%,transparent_25%),linear-gradient(-45deg,#e5e7eb_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e5e7eb_75%),linear-gradient(-45deg,transparent_75%,#e5e7eb_75%)] bg-[length:8px_8px] bg-[position:0_0,0_4px,4px_-4px,-4px_0px]" />
-            </button>
-            {colorSwatches.map((color) => (
-              <button
-                key={color}
-                type="button"
-                aria-label={`Fill ${color}`}
-                className={`${swatchClassBase} ${
-                  fill === color ? "ring-2 ring-gray-900 dark:ring-gray-200" : ""
-                }`}
-                style={{ backgroundColor: color }}
-                onClick={() => updateFill(color)}
-              />
-            ))}
-            <div className={separatorClass} />
-            <input
-              type="color"
-              aria-label="Custom fill color"
-              className={colorInputClass}
-              value={fill === "transparent" ? "#ffffff" : fill}
-              onChange={(e) => updateFill(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-200">Stroke width</div>
-          <div className="flex items-center gap-3">
-            {strokeWidthOptions.map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-label={`Stroke width ${value}`}
-                className={`h-10 w-12 rounded-lg border ${
-                  strokeWidth === value
-                    ? "bg-[#c7f3e2] border-transparent text-black"
-                    : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
-                }`}
-                onClick={() => updateStrokeWidth(value)}
-              >
-                <span
-                  className="block mx-auto rounded-full bg-current"
-                  style={{ height: Math.max(2, value), width: value >= 6 ? 18 : 14 }}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-200">Stroke style</div>
-          <div className="flex items-center gap-3">
-            {strokeStyleOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-label={option.label}
-                className={`h-10 w-12 rounded-lg border ${
-                  strokeStyle === option.id
-                    ? "bg-[#c7f3e2] border-transparent text-black"
-                    : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
-                }`}
-                onClick={() =>
-                  updateStrokeStyle(option.id as "solid" | "dashed" | "dotted")
-                }
-              >
-                <span
-                  className={`block mx-auto w-5 ${option.className} border-current`}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-200">Sloppiness</div>
-          <div className="flex items-center gap-3">
-            {sloppinessOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-label={option.label}
-                className={`h-10 w-12 rounded-lg border ${
-                  sloppiness === option.id
-                    ? "bg-[#c7f3e2] border-transparent text-black"
-                    : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
-                }`}
-                onClick={() => updateSloppiness(option.id as 0 | 1 | 2)}
-              >
-                <svg
-                  viewBox="0 0 24 20"
-                  className="mx-auto h-5 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Background
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="No fill"
+                  className={`${swatchClassBase} ${
+                    fill === "transparent"
+                      ? "ring-2 ring-gray-900 dark:ring-gray-200"
+                      : "border-gray-200 dark:border-gray-700"
+                  }`}
+                  onClick={() => updateFill("transparent")}
                 >
-                  <path d={option.path} />
-                </svg>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-200">Edges</div>
-          <div className="flex items-center gap-3">
-            {edgeOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-label={option.label}
-                className={`h-10 w-12 rounded-lg border ${
-                  edgeStyle === option.id
-                    ? "bg-[#c7f3e2] border-transparent text-black"
-                    : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
-                }`}
-                onClick={() => updateEdgeStyle(option.id as "sharp" | "round")}
-              >
-                <svg
-                  viewBox="0 0 24 20"
-                  className="mx-auto h-5 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinejoin={option.rounded ? "round" : "miter"}
-                >
-                  <rect
-                    x="4"
-                    y="4"
-                    width="14"
-                    height="12"
-                    rx={option.rounded ? "3" : "0"}
-                    ry={option.rounded ? "3" : "0"}
-                    strokeDasharray="2 2"
+                  <span className="block h-full w-full rounded-md bg-[linear-gradient(45deg,#e5e7eb_25%,transparent_25%),linear-gradient(-45deg,#e5e7eb_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e5e7eb_75%),linear-gradient(-45deg,transparent_75%,#e5e7eb_75%)] bg-[length:8px_8px] bg-[position:0_0,0_4px,4px_-4px,-4px_0px]" />
+                </button>
+                {colorSwatches.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    aria-label={`Fill ${color}`}
+                    className={`${swatchClassBase} ${
+                      fill === color ? "ring-2 ring-gray-900 dark:ring-gray-200" : ""
+                    }`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => updateFill(color)}
                   />
-                </svg>
-              </button>
-            ))}
-          </div>
-        </div>
+                ))}
+                <div className={separatorClass} />
+                <input
+                  type="color"
+                  aria-label="Custom fill color"
+                  className={colorInputClass}
+                  value={fill === "transparent" ? "#ffffff" : fill}
+                  onChange={(e) => updateFill(e.target.value)}
+                />
+              </div>
+            </div>
 
-        <Separator />
+            <Separator />
+
+          </>
+        ) : null}
+
+        {showStrokeWidthControls ? (
+          <>
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Stroke width
+              </div>
+              <div className="flex items-center gap-3">
+                {strokeWidthOptions.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-label={`Stroke width ${value}`}
+                    className={`h-10 w-12 rounded-lg border ${
+                      strokeWidth === value
+                        ? "bg-[#c7f3e2] border-transparent text-black"
+                        : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
+                    }`}
+                    onClick={() => updateStrokeWidth(value)}
+                  >
+                    <span
+                      className="block mx-auto rounded-full bg-current"
+                      style={{ height: Math.max(2, value), width: value >= 6 ? 18 : 14 }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {showStrokeStyleControls ? (
+          <>
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Stroke style
+              </div>
+              <div className="flex items-center gap-3">
+                {strokeStyleOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-label={option.label}
+                    className={`h-10 w-12 rounded-lg border ${
+                      strokeStyle === option.id
+                        ? "bg-[#c7f3e2] border-transparent text-black"
+                        : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
+                    }`}
+                    onClick={() =>
+                      updateStrokeStyle(option.id as "solid" | "dashed" | "dotted")
+                    }
+                  >
+                    <span className={`block mx-auto w-5 ${option.className} border-current`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {showSloppinessControls ? (
+          <>
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Sloppiness
+              </div>
+              <div className="flex items-center gap-3">
+                {sloppinessOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-label={option.label}
+                    className={`h-10 w-12 rounded-lg border ${
+                      sloppiness === option.id
+                        ? "bg-[#c7f3e2] border-transparent text-black"
+                        : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
+                    }`}
+                    onClick={() => updateSloppiness(option.id as 0 | 1 | 2)}
+                  >
+                    <svg
+                      viewBox="0 0 24 20"
+                      className="mx-auto h-5 w-6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d={option.path} />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {showEdgeControls ? (
+          <>
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Edges
+              </div>
+              <div className="flex items-center gap-3">
+                {edgeOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-label={option.label}
+                    className={`h-10 w-12 rounded-lg border ${
+                      edgeStyle === option.id
+                        ? "bg-[#c7f3e2] border-transparent text-black"
+                        : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-900 dark:text-gray-100"
+                    }`}
+                    onClick={() => updateEdgeStyle(option.id as "sharp" | "round")}
+                  >
+                    <svg
+                      viewBox="0 0 24 20"
+                      className="mx-auto h-5 w-6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinejoin={option.rounded ? "round" : "miter"}
+                    >
+                      <rect
+                        x="4"
+                        y="4"
+                        width="14"
+                        height="12"
+                        rx={option.rounded ? "3" : "0"}
+                        ry={option.rounded ? "3" : "0"}
+                        strokeDasharray="2 2"
+                      />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
 
         <div className="space-y-2">
           <div className="text-sm font-medium text-gray-700 dark:text-gray-200">Opacity</div>

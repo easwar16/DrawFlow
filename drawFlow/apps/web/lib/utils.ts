@@ -73,10 +73,31 @@ export type Shape =
       text: string;
       fontSize: number;
       fontFamily: string;
+      fontWeight?: "normal" | "bold";
+      fontStyle?: "normal" | "italic";
+      textAlign?: "left" | "center" | "right";
       color: string;
       w: number;
       h: number;
     } & ShapeStyle);
+
+export type TextShape = Extract<Shape, { type: "text" }>;
+
+export function getTextBounds(shape: TextShape) {
+  const align = shape.textAlign ?? "left";
+  let x = shape.x;
+  if (align === "center") {
+    x -= shape.w / 2;
+  } else if (align === "right") {
+    x -= shape.w;
+  }
+  return {
+    x,
+    y: shape.y - shape.h,
+    w: shape.w,
+    h: shape.h,
+  };
+}
 
 export interface ToolController {
   onPointerDown(e: PointerEvent): void;

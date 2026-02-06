@@ -6,6 +6,7 @@ export class TextTool implements ToolController {
   private textarea: HTMLTextAreaElement | null = null;
   private x = 0;
   private y = 0;
+  private isCleaning = false;
 
   onPointerDown(e: PointerEvent) {
     const cm = CanvasManager.getInstance();
@@ -26,21 +27,29 @@ export class TextTool implements ToolController {
     const cm = CanvasManager.getInstance();
     const canvas = (cm as any).canvas as HTMLCanvasElement;
     const container = canvas.parentElement!;
+    const { currentStyle, currentTextStyle } = useEditorStore.getState();
 
     container.style.position ||= "relative";
 
     const textarea = document.createElement("textarea");
 
-    const topLeft = cm.toScreenPoint({ x: this.x, y: this.y });
+    const fontSize = currentTextStyle.fontSize ?? 20;
+    const fontFamily = currentTextStyle.fontFamily ?? "Virgil";
+    const fontWeight = currentTextStyle.fontWeight ?? "normal";
+    const fontStyle = currentTextStyle.fontStyle ?? "normal";
+    const textAlign = currentTextStyle.textAlign ?? "left";
+    const baseScreen = cm.toScreenPoint({ x: this.x, y: this.y - fontSize });
     textarea.style.position = "absolute";
-    textarea.style.left = `${topLeft.x}px`;
-    textarea.style.top = `${topLeft.y}px`;
-    textarea.style.fontSize = `${20 * cm.getZoom()}px`;
-    textarea.style.fontFamily = "Virgil";
+    textarea.style.top = `${baseScreen.y}px`;
+    textarea.style.fontSize = `${fontSize * cm.getZoom()}px`;
+    textarea.style.fontFamily = fontFamily;
+    textarea.style.fontWeight = fontWeight;
+    textarea.style.fontStyle = fontStyle;
+    textarea.style.textAlign = textAlign;
 
     textarea.style.border = "none";
     textarea.style.background = "transparent";
-    textarea.style.color = "black";
+    textarea.style.color = currentStyle.stroke || "black";
     textarea.style.resize = "none";
     textarea.style.outline = "none";
     textarea.style.boxShadow = "none";
@@ -50,21 +59,33 @@ export class TextTool implements ToolController {
     textarea.style.boxSizing = "border-box";
     textarea.spellcheck = false;
     textarea.style.minWidth = "40px";
-    textarea.style.minHeight = `${20 * cm.getZoom() + 6}px`;
+    textarea.style.minHeight = `${fontSize * cm.getZoom() + 6}px`;
     textarea.rows = 1;
 
     container.appendChild(textarea);
     textarea.focus();
 
+    const positionTextarea = () => {
+      const width = parseFloat(textarea.style.width || "0");
+      let left = baseScreen.x;
+      if (textAlign === "center") {
+        left -= width / 2;
+      } else if (textAlign === "right") {
+        left -= width;
+      }
+      textarea.style.left = `${left}px`;
+    };
+
     const resizeTextarea = () => {
       const ctx = (cm as any).ctx as CanvasRenderingContext2D;
-      ctx.font = `20px Virgil`;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
       const text = textarea.value || " ";
       const textWidth = ctx.measureText(text).width * cm.getZoom();
       const nextWidth = Math.max(textWidth + 8, 40);
       textarea.style.width = `${nextWidth}px`;
       textarea.style.height = "auto";
       textarea.style.height = `${textarea.scrollHeight}px`;
+      positionTextarea();
 
       // keep selection hidden while typing
     };
@@ -99,10 +120,14 @@ export class TextTool implements ToolController {
     const cm = CanvasManager.getInstance();
     const ctx = (cm as any).ctx as CanvasRenderingContext2D;
 
-    const fontSize = 20;
-    const fontFamily = "Virgil";
+    const { currentTextStyle } = useEditorStore.getState();
+    const fontSize = currentTextStyle.fontSize ?? 20;
+    const fontFamily = currentTextStyle.fontFamily ?? "Virgil";
+    const fontWeight = currentTextStyle.fontWeight ?? "normal";
+    const fontStyle = currentTextStyle.fontStyle ?? "normal";
+    const textAlign = currentTextStyle.textAlign ?? "left";
 
-    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
     const w = ctx.measureText(text).width;
     const h = fontSize;
 
@@ -115,6 +140,9 @@ export class TextTool implements ToolController {
       text,
       fontSize,
       fontFamily,
+      fontWeight,
+      fontStyle,
+      textAlign,
       color: currentStyle.stroke,
       stroke: currentStyle.stroke,
       fill: currentStyle.fill,
@@ -132,11 +160,17 @@ export class TextTool implements ToolController {
   }
 
   private cleanup() {
+    if (this.isCleaning) return;
+    this.isCleaning = true;
     if (this.textarea) {
-      this.textarea.remove();
+      const parent = this.textarea.parentElement;
+      if (parent && parent.contains(this.textarea)) {
+        parent.removeChild(this.textarea);
+      }
       this.textarea = null;
     }
     CanvasManager.getInstance().setEditingTextBounds(null);
     useEditorStore.getState().maybeResetToolAfterAction();
+    this.isCleaning = false;
   }
 }

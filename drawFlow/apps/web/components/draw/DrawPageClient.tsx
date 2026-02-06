@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  HelpCircle,
   Home,
   Image as ImageIcon,
+  Italic,
   Menu,
+  Minus,
   Monitor,
   Moon,
   PenTool,
+  Plus,
   Sun,
   Trash2,
   Users,
@@ -22,6 +30,15 @@ import { ShareButton } from "@/components/share/ShareButton";
 import { ExportDialog } from "@/components/export/ExportDialog";
 import { useEditorStore } from "@/store/editor";
 import { Button } from "@/components/ui/button";
+import CanvasManager from "@/lib/canvas/CanvasManager";
+import { getTextBounds, TextShape } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,16 +58,91 @@ export default function DrawPageClient() {
   const loadShapesFromStorage = useEditorStore((s) => s.loadShapesFromStorage);
   const connectWebSocket = useEditorStore((s) => s.connectWebSocket);
   const disconnectWebSocket = useEditorStore((s) => s.disconnectWebSocket);
+  const roomId = useEditorStore((s) => s.roomId);
+  const theme = useEditorStore((s) => s.theme);
+  const setTheme = useEditorStore((s) => s.setTheme);
+  const canvasBg = useEditorStore((s) => s.canvasBg);
+  const setCanvasBg = useEditorStore((s) => s.setCanvasBg);
+  const hasCustomCanvasBg = useEditorStore((s) => s.hasCustomCanvasBg);
+  const setHasCustomCanvasBg = useEditorStore((s) => s.setHasCustomCanvasBg);
   const shapes = useEditorStore((s) => s.shapes);
   const setShapes = useEditorStore((s) => s.setShapes);
   const setSelectedShapeIds = useEditorStore((s) => s.setSelectedShapeIds);
+  const selectedShapeIds = useEditorStore((s) => s.selectedShapeIds);
+  const updateShape = useEditorStore((s) => s.updateShape);
+  const currentTextStyle = useEditorStore((s) => s.currentTextStyle);
+  const setCurrentTextStyle = useEditorStore((s) => s.setCurrentTextStyle);
+  const editingTextId = useEditorStore((s) => s.editingTextId);
   const currentStyle = useEditorStore((s) => s.currentStyle);
   const setCurrentStyle = useEditorStore((s) => s.setCurrentStyle);
-  const [canvasBg, setCanvasBg] = useState("#ffffff");
-  const [hasCustomCanvasBg, setHasCustomCanvasBg] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [isMac, setIsMac] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const lastThemeRef = useRef<"light" | "dark" | "system">(theme);
+
+  const isTextShape = (shape: unknown): shape is TextShape =>
+    typeof shape === "object" && shape !== null && (shape as TextShape).type === "text";
+
+  const textTargets = useMemo(() => {
+    if (editingTextId) {
+      const editing = shapes.find(
+        (shape) => shape.type === "text" && shape.id === editingTextId,
+      );
+      return editing ? [editing as TextShape] : [];
+    }
+    const selected = shapes.filter((shape) => selectedShapeIds.includes(shape.id));
+    return selected.filter(isTextShape);
+  }, [editingTextId, selectedShapeIds, shapes]);
+
+  const textToolbarPosition = useMemo(() => {
+    const primary = textTargets[0];
+    if (!primary) return null;
+    const bounds = getTextBounds(primary);
+    const cm = CanvasManager.getInstance();
+    const topLeft = cm.toScreenPoint({ x: bounds.x, y: bounds.y });
+    const left = Math.max(8, topLeft.x);
+    const top = Math.max(8, topLeft.y - 46);
+    return { left, top };
+  }, [textTargets]);
+
+  const applyTextUpdates = (updates: Partial<typeof currentTextStyle>) => {
+    if (textTargets.length === 0) return;
+    const nextStyle = { ...currentTextStyle, ...updates };
+    const cm = CanvasManager.getInstance();
+    const ctx = (cm as any).ctx as CanvasRenderingContext2D | undefined;
+
+    for (const shape of textTargets) {
+      updateShape(shape.id, (current) => {
+        if (current.type !== "text") return current;
+        const next = {
+          ...current,
+          fontSize: nextStyle.fontSize,
+          fontFamily: nextStyle.fontFamily,
+          fontWeight: nextStyle.fontWeight,
+          fontStyle: nextStyle.fontStyle,
+          textAlign: nextStyle.textAlign,
+        };
+        if (ctx) {
+          ctx.font = `${next.fontStyle ?? "normal"} ${next.fontWeight ?? "normal"} ${next.fontSize}px ${next.fontFamily}`;
+          const w = ctx.measureText(next.text).width;
+          const h = next.fontSize;
+          return { ...next, w, h };
+        }
+        return next;
+      });
+    }
+    setCurrentTextStyle(nextStyle);
+  };
+
+  useEffect(() => {
+    setIsMounted(true);
+    if (typeof window === "undefined") return;
+    const platform = navigator.platform ?? "";
+    const ua = navigator.userAgent ?? "";
+    setIsMac(platform.includes("Mac") || ua.includes("Mac"));
+  }, []);
 
   useEffect(() => {
     const roomIdFromParams = searchParams?.get("roomId") ?? null;
@@ -75,8 +167,10 @@ export default function DrawPageClient() {
     };
   }, [searchParams, setRoomId, loadShapesFromStorage, connectWebSocket, disconnectWebSocket]);
 
+
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (roomId !== null) return;
     const storedTheme = localStorage.getItem("drawflow:theme");
     const storedCanvas = localStorage.getItem("drawflow:canvasBg");
     const storedCustom = localStorage.getItem("drawflow:canvasBgCustom");
@@ -89,7 +183,7 @@ export default function DrawPageClient() {
     if (storedCustom === "1") {
       setHasCustomCanvasBg(true);
     }
-  }, []);
+  }, [roomId, setCanvasBg, setHasCustomCanvasBg, setTheme]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -103,6 +197,7 @@ export default function DrawPageClient() {
     localStorage.setItem("drawflow:canvasBgCustom", hasCustomCanvasBg ? "1" : "0");
   }, [canvasBg, hasCustomCanvasBg]);
 
+
   useEffect(() => {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
@@ -112,7 +207,10 @@ export default function DrawPageClient() {
       document.documentElement.classList.remove("dark");
     }
     if (!hasCustomCanvasBg) {
-      setCanvasBg(theme === "dark" ? "#1e1e1e" : "#ffffff");
+      const desiredBg = theme === "dark" ? "#1e1e1e" : "#ffffff";
+      if (canvasBg !== desiredBg) {
+        setCanvasBg(desiredBg);
+      }
     }
     if (theme === "dark" && currentStyle.stroke === "#000000") {
       setCurrentStyle({ stroke: "#ffffff" });
@@ -124,6 +222,44 @@ export default function DrawPageClient() {
       localStorage.setItem("drawflow:theme", theme);
     }
   }, [theme, hasCustomCanvasBg, currentStyle.stroke, setCurrentStyle]);
+
+  useEffect(() => {
+    if (theme === "system") {
+      lastThemeRef.current = theme;
+      return;
+    }
+    if (lastThemeRef.current === theme) return;
+
+    const toLight = theme === "light";
+    const nextStroke = toLight ? "#000000" : "#ffffff";
+    const prevStroke = toLight ? "#ffffff" : "#000000";
+    const nextText = nextStroke;
+    const prevText = prevStroke;
+
+    let hasChanges = false;
+    const updated = shapes.map((shape) => {
+      let updatedShape = shape;
+      if (shape.stroke === prevStroke) {
+        updatedShape = { ...updatedShape, stroke: nextStroke };
+        hasChanges = true;
+      }
+      if (updatedShape.type === "text" && updatedShape.color === prevText) {
+        updatedShape = { ...updatedShape, color: nextText };
+        hasChanges = true;
+      }
+      return updatedShape;
+    });
+
+    if (hasChanges) {
+      const selectedIds = useEditorStore.getState().selectedShapeIds;
+      setShapes(updated);
+      if (selectedIds.length > 0) {
+        setSelectedShapeIds(selectedIds);
+      }
+    }
+
+    lastThemeRef.current = theme;
+  }, [theme, shapes, setShapes, setSelectedShapeIds]);
 
   return (
     <div className="w-screen h-screen">
@@ -179,7 +315,16 @@ export default function DrawPageClient() {
                   className={`h-7 w-7 rounded-full flex items-center justify-center ${
                     theme === "light" ? "bg-[#c7f3e2] text-black" : "opacity-70"
                   }`}
-                  onClick={() => setTheme("light")}
+                  onClick={() => {
+                    const nextTheme = "light";
+                    const nextCanvasBg = hasCustomCanvasBg
+                      ? canvasBg
+                      : "#ffffff";
+                    setTheme(nextTheme);
+                    if (!hasCustomCanvasBg) {
+                      setCanvasBg(nextCanvasBg);
+                    }
+                  }}
                 >
                   <Sun className="h-4 w-4" />
                 </button>
@@ -188,7 +333,16 @@ export default function DrawPageClient() {
                   className={`h-7 w-7 rounded-full flex items-center justify-center ${
                     theme === "dark" ? "bg-[#c7f3e2] text-black" : "opacity-70"
                   }`}
-                  onClick={() => setTheme("dark")}
+                  onClick={() => {
+                    const nextTheme = "dark";
+                    const nextCanvasBg = hasCustomCanvasBg
+                      ? canvasBg
+                      : "#1e1e1e";
+                    setTheme(nextTheme);
+                    if (!hasCustomCanvasBg) {
+                      setCanvasBg(nextCanvasBg);
+                    }
+                  }}
                 >
                   <Moon className="h-4 w-4" />
                 </button>
@@ -197,7 +351,16 @@ export default function DrawPageClient() {
                   className={`h-7 w-7 rounded-full flex items-center justify-center ${
                     theme === "system" ? "bg-[#c7f3e2] text-black" : "opacity-70"
                   }`}
-                  onClick={() => setTheme("system")}
+                  onClick={() => {
+                    const nextTheme = "system";
+                    const nextCanvasBg = hasCustomCanvasBg
+                      ? canvasBg
+                      : "#ffffff";
+                    setTheme(nextTheme);
+                    if (!hasCustomCanvasBg) {
+                      setCanvasBg(nextCanvasBg);
+                    }
+                  }}
                 >
                   <Monitor className="h-4 w-4" />
                 </button>
@@ -224,16 +387,18 @@ export default function DrawPageClient() {
                     value={canvasBg}
                     onClick={(event) => event.stopPropagation()}
                     onChange={(event) => {
+                      const nextCanvasBg = event.target.value;
                       setHasCustomCanvasBg(true);
-                      setCanvasBg(event.target.value);
+                      setCanvasBg(nextCanvasBg);
                     }}
                   />
                   <span>Custom color</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => {
+                    const nextCanvasBg = theme === "dark" ? "#1e1e1e" : "#ffffff";
                     setHasCustomCanvasBg(false);
-                    setCanvasBg(theme === "dark" ? "#1e1e1e" : "#ffffff");
+                    setCanvasBg(nextCanvasBg);
                   }}
                 >
                   <span>Reset to theme</span>
@@ -255,12 +420,213 @@ export default function DrawPageClient() {
       <header className="absolute top-4 right-4 z-50">
         <ShareButton open={shareOpen} onOpenChange={setShareOpen} />
       </header>
+      {isMounted && textTargets.length > 0 && textToolbarPosition ? (
+        <div
+          className="fixed z-50 flex items-center gap-2 rounded-xl bg-white/95 dark:bg-[#1f1f1f]/95 px-2 py-1.5 shadow-lg shadow-black/10 dark:shadow-black/40 ring-1 ring-black/5 dark:ring-white/10"
+          style={{ left: textToolbarPosition.left, top: textToolbarPosition.top }}
+        >
+          <button
+            type="button"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+            onClick={() =>
+              applyTextUpdates({
+                fontSize: Math.max(8, currentTextStyle.fontSize - 2),
+              })
+            }
+            aria-label="Decrease font size"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+          <input
+            type="number"
+            min={8}
+            max={96}
+            value={currentTextStyle.fontSize}
+            onChange={(event) =>
+              applyTextUpdates({
+                fontSize: Math.min(96, Math.max(8, Number(event.target.value || 8))),
+              })
+            }
+            className="w-14 rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-sm text-gray-800 dark:text-gray-100"
+          />
+          <button
+            type="button"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+            onClick={() =>
+              applyTextUpdates({
+                fontSize: Math.min(96, currentTextStyle.fontSize + 2),
+              })
+            }
+            aria-label="Increase font size"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          <div className="h-5 w-px bg-gray-200 dark:bg-gray-700" />
+          <button
+            type="button"
+            className={`h-7 w-7 inline-flex items-center justify-center rounded-md ${
+              currentTextStyle.fontWeight === "bold"
+                ? "bg-[#c7f3e2] text-black"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+            }`}
+            onClick={() =>
+              applyTextUpdates({
+                fontWeight: currentTextStyle.fontWeight === "bold" ? "normal" : "bold",
+              })
+            }
+            aria-label="Toggle bold"
+          >
+            <Bold className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className={`h-7 w-7 inline-flex items-center justify-center rounded-md ${
+              currentTextStyle.fontStyle === "italic"
+                ? "bg-[#c7f3e2] text-black"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+            }`}
+            onClick={() =>
+              applyTextUpdates({
+                fontStyle: currentTextStyle.fontStyle === "italic" ? "normal" : "italic",
+              })
+            }
+            aria-label="Toggle italic"
+          >
+            <Italic className="h-4 w-4" />
+          </button>
+          <div className="h-5 w-px bg-gray-200 dark:bg-gray-700" />
+          <button
+            type="button"
+            className={`h-7 w-7 inline-flex items-center justify-center rounded-md ${
+              currentTextStyle.textAlign === "left"
+                ? "bg-[#c7f3e2] text-black"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+            }`}
+            onClick={() => applyTextUpdates({ textAlign: "left" })}
+            aria-label="Align left"
+          >
+            <AlignLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className={`h-7 w-7 inline-flex items-center justify-center rounded-md ${
+              currentTextStyle.textAlign === "center"
+                ? "bg-[#c7f3e2] text-black"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+            }`}
+            onClick={() => applyTextUpdates({ textAlign: "center" })}
+            aria-label="Align center"
+          >
+            <AlignCenter className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className={`h-7 w-7 inline-flex items-center justify-center rounded-md ${
+              currentTextStyle.textAlign === "right"
+                ? "bg-[#c7f3e2] text-black"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+            }`}
+            onClick={() => applyTextUpdates({ textAlign: "right" })}
+            aria-label="Align right"
+          >
+            <AlignRight className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+      {isMounted ? (
+        <button
+          type="button"
+          className="fixed bottom-5 right-5 z-50 rounded-full bg-white/90 dark:bg-[#1f1f1f]/90 text-gray-800 dark:text-gray-100 shadow-lg shadow-black/10 dark:shadow-black/40 ring-1 ring-black/5 dark:ring-white/10 p-3"
+          onClick={() => setHelpOpen(true)}
+          aria-label="Help and shortcuts"
+          title="Help and shortcuts"
+        >
+          <HelpCircle className="h-5 w-5" />
+        </button>
+      ) : null}
       <ExportDialog
         open={exportOpen}
         onOpenChange={setExportOpen}
         canvasBg={canvasBg}
         shapes={shapes}
       />
+      {isMounted ? (
+        <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+          <DialogContent className="sm:max-w-[520px]">
+            <DialogHeader>
+              <DialogTitle>Help &amp; shortcuts</DialogTitle>
+              <DialogDescription>
+                {isMac ? "macOS" : "Windows/Linux"} shortcuts
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 text-sm">
+              <div>
+                <div className="font-medium text-gray-700 dark:text-gray-200 mb-2">
+                  Tools
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Lock tool</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">Q</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Hand</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">1</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Select</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">2</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Rectangle</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">3</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Rhombus</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">4</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Circle</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">5</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Arrow</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">6</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Line</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">7</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Pencil</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">8</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Text</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">9</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Eraser</span>
+                    <kbd className="rounded border px-2 py-0.5 text-xs">0</kbd>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="font-medium text-gray-700 dark:text-gray-200 mb-2">
+                  Tips
+                </div>
+                <ul className="space-y-1 text-gray-600 dark:text-gray-300">
+                  <li>Double-click empty space to create text</li>
+                  <li>Double-click text to edit</li>
+                  <li>Use {isMac ? "Command" : "Ctrl"} + Z to undo</li>
+                  <li>Use {isMac ? "Command" : "Ctrl"} + Shift + Z to redo</li>
+                  <li>Press Escape to cancel text editing</li>
+                </ul>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
       <Toolbar />
       <PropertiesPanel />
       {shapes.length === 0 ? (

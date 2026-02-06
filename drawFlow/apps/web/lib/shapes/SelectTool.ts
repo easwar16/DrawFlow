@@ -32,9 +32,6 @@ export class SelectTool implements ToolController {
   private rotateStartAngle = 0;
   private rotateStartRotation = 0;
   private rotateCenter: Point | null = null;
-  private editingTextarea: HTMLTextAreaElement | null = null;
-  private editingId: string | null = null;
-  private previousSelection: string[] | null = null;
 
   private static MIN_SIZE = 12;
 
@@ -46,7 +43,6 @@ export class SelectTool implements ToolController {
     this.initialShapes.clear();
     this.rotating = false;
     this.rotateCenter = null;
-    this.cleanupTextEdit();
     this.isMarquee = false;
     this.marqueeRect = null;
     CanvasManager.getInstance().setSelectionRect(null);
@@ -142,25 +138,7 @@ export class SelectTool implements ToolController {
     this.startMarquee(p);
   }
 
-  onDoubleClick(e: MouseEvent) {
-    if (useEditorStore.getState().isToolLocked) {
-      return;
-    }
-    const cm = CanvasManager.getInstance();
-    const p = cm.toCanvasPoint({
-      clientX: e.clientX,
-      clientY: e.clientY,
-    } as PointerEvent);
-
-    const { shapes, setSelectedShapeIds } = useEditorStore.getState();
-    for (const shape of [...shapes].reverse()) {
-      if (shape.type !== "text") continue;
-      if (!hitTest(p, shape)) continue;
-      setSelectedShapeIds([shape.id]);
-      this.startTextEdit(shape);
-      return;
-    }
-  }
+  onDoubleClick(_e: MouseEvent) {}
 
   // -----------------------------
   // Pointer Move
@@ -588,128 +566,6 @@ export class SelectTool implements ToolController {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  private startTextEdit(shape: Shape) {
-    if (shape.type !== "text") return;
-    this.cleanupTextEdit();
-
-    const cm = CanvasManager.getInstance();
-    const canvas = (cm as any).canvas as HTMLCanvasElement;
-    const container = canvas.parentElement!;
-    container.style.position ||= "relative";
-    const { selectedShapeIds, setSelectedShapeIds } = useEditorStore.getState();
-    this.previousSelection = selectedShapeIds;
-    setSelectedShapeIds([]);
-    cm.render();
-    cm.setEditingTextId(shape.id);
-    cm.setEditingTextBounds(null);
-    cm.render();
-
-    const textarea = document.createElement("textarea");
-    const topLeft = cm.toScreenPoint({ x: shape.x, y: shape.y - shape.h });
-
-    textarea.value = shape.text;
-    textarea.style.position = "absolute";
-    textarea.style.left = `${topLeft.x}px`;
-    textarea.style.top = `${topLeft.y}px`;
-    textarea.style.fontSize = `${shape.fontSize * cm.getZoom()}px`;
-    textarea.style.fontFamily = shape.fontFamily;
-    textarea.style.border = "none";
-    textarea.style.background = "transparent";
-    textarea.style.color = shape.color;
-    textarea.style.resize = "none";
-    textarea.style.outline = "none";
-    textarea.style.boxShadow = "none";
-    textarea.style.padding = "2px 4px";
-    textarea.style.lineHeight = "1.2";
-    textarea.style.letterSpacing = "normal";
-    textarea.style.webkitTextFillColor = shape.color;
-    textarea.style.fontSmoothing = "antialiased";
-    textarea.style.webkitFontSmoothing = "antialiased";
-    textarea.style.overflow = "hidden";
-    textarea.style.boxSizing = "border-box";
-    textarea.spellcheck = false;
-    textarea.style.minWidth = "40px";
-    textarea.style.minHeight = `${shape.fontSize * cm.getZoom() + 6}px`;
-
-    const resizeTextarea = () => {
-      const ctx = (cm as any).ctx as CanvasRenderingContext2D;
-      ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
-      const text = textarea.value || " ";
-      const textWidth = ctx.measureText(text).width * cm.getZoom();
-      const nextWidth = Math.max(textWidth + 8, 40);
-      textarea.style.width = `${nextWidth}px`;
-      textarea.style.height = "auto";
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    };
-
-    resizeTextarea();
-
-    container.appendChild(textarea);
-    textarea.focus();
-    const end = textarea.value.length;
-    textarea.setSelectionRange(end, end);
-
-    const commit = () => this.commitTextEdit(shape.id, textarea.value);
-    textarea.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commit();
-      }
-      if (event.key === "Escape") {
-        this.cleanupTextEdit(true);
-      }
-    });
-
-    textarea.addEventListener("input", resizeTextarea);
-    textarea.addEventListener("blur", commit);
-
-    this.editingTextarea = textarea;
-    this.editingId = shape.id;
-  }
-
-  private commitTextEdit(id: string, text: string) {
-    const { updateShape, removeShape, setSelectedShapeIds } =
-      useEditorStore.getState();
-
-    if (!text.trim()) {
-      removeShape(id);
-      setSelectedShapeIds([]);
-      this.cleanupTextEdit(false);
-      return;
-    }
-
-    const cm = CanvasManager.getInstance();
-    const ctx = (cm as any).ctx as CanvasRenderingContext2D;
-
-    updateShape(id, (shape) => {
-      if (shape.type !== "text") return shape;
-
-      ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
-      const w = ctx.measureText(text).width;
-      const h = shape.fontSize;
-
-      return { ...shape, text, w, h };
-    });
-
-    this.cleanupTextEdit(false);
-    setSelectedShapeIds([id]);
-    CanvasManager.getInstance().render();
-  }
-
-  private cleanupTextEdit(restoreSelection = false) {
-    if (this.editingTextarea) {
-      this.editingTextarea.remove();
-      this.editingTextarea = null;
-      this.editingId = null;
-    }
-    CanvasManager.getInstance().setEditingTextId(null);
-    CanvasManager.getInstance().setEditingTextBounds(null);
-    if (restoreSelection && this.previousSelection) {
-      useEditorStore.getState().setSelectedShapeIds(this.previousSelection);
-    }
-    this.previousSelection = null;
-    CanvasManager.getInstance().render();
-  }
 
   private scalePoint(
     point: Point,

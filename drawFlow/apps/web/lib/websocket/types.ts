@@ -1,8 +1,15 @@
 import { Shape } from "../utils";
 
+export type RoomSettings = {
+  theme: "light" | "dark" | "system";
+  canvasBg: string;
+  hasCustomCanvasBg: boolean;
+};
+
 // Client → Server message types
 export type ClientMessage =
   | { type: "join_room"; roomId: string; username: string }
+  | { type: "room_settings_update"; roomId: string; settings: RoomSettings }
   | { type: "shape_add"; roomId: string; shape: Shape }
   | { type: "shape_update"; roomId: string; shape: Shape }
   | { type: "shape_remove"; roomId: string; shapeId: string }
@@ -25,6 +32,7 @@ export type ClientMessage =
 // Server → Client message types
 export type ServerMessage =
   | { type: "room_joined"; roomId: string; shapes: Shape[] }
+  | { type: "room_settings_updated"; roomId: string; settings: RoomSettings }
   | { type: "shape_added"; roomId: string; shape: Shape }
   | { type: "shape_updated"; roomId: string; shape: Shape }
   | { type: "shape_removed"; roomId: string; shapeId: string }

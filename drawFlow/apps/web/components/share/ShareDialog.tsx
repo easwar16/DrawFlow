@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,7 @@ export function ShareDialog({
   const [isOwner, setIsOwner] = useState(false);
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const id = searchParams?.get("roomId");
@@ -50,20 +51,21 @@ export function ShareDialog({
       const ownerKey = `drawflow:roomOwner:${id}`;
       localStorage.setItem(ownerKey, "1");
       const nextUrl = `${pathname}?roomId=${encodeURIComponent(id)}`;
-      window.history.replaceState({}, "", nextUrl);
+      router.replace(nextUrl);
     }
   };
 
   const deactivateSession = () => {
+    const currentRoomId = roomId;
     setRoomId(null);
     setState("idle");
     setIsOwner(false);
     if (typeof window !== "undefined") {
-      if (roomId) {
-        const ownerKey = `drawflow:roomOwner:${roomId}`;
+      if (currentRoomId) {
+        const ownerKey = `drawflow:roomOwner:${currentRoomId}`;
         localStorage.removeItem(ownerKey);
       }
-      window.history.replaceState({}, "", pathname);
+      router.replace(pathname);
     }
   };
 

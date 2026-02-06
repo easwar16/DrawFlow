@@ -3,7 +3,7 @@ import { Shape } from "../lib/utils";
 import { ToolType } from "@/types/shape/shape";
 import { saveShapes, loadShapes } from "../lib/storage";
 import { wsManager } from "../lib/websocket/websocket";
-import { ServerMessage, CursorPosition } from "../lib/websocket/types";
+import { ServerMessage, CursorPosition, RoomSettings } from "../lib/websocket/types";
 
 const cloneShapes = (shapes: Shape[]) =>
   typeof structuredClone === "function"
@@ -32,6 +32,19 @@ type EditorState = {
     edgeStyle: "sharp" | "round";
     rotation: number;
   };
+  currentTextStyle: {
+    fontSize: number;
+    fontFamily: string;
+    fontWeight: "normal" | "bold";
+    fontStyle: "normal" | "italic";
+    textAlign: "left" | "center" | "right";
+  };
+  theme: "light" | "dark" | "system";
+  canvasBg: string;
+  hasCustomCanvasBg: boolean;
+  roomSettingsFromRemote: boolean;
+  pendingRoomSettings: RoomSettings | null;
+  editingTextId: string | null;
 
   // actions
   setRoomId: (id: string | null) => void;
@@ -41,7 +54,17 @@ type EditorState = {
   toggleToolLocked: () => void;
   maybeResetToolAfterAction: () => void;
   setCurrentStyle: (style: Partial<EditorState["currentStyle"]>) => void;
+  setCurrentTextStyle: (style: Partial<EditorState["currentTextStyle"]>) => void;
   syncStyleFromShape: (shape: Shape) => void;
+  setTheme: (theme: EditorState["theme"]) => void;
+  setCanvasBg: (canvasBg: string) => void;
+  setHasCustomCanvasBg: (hasCustom: boolean) => void;
+  setRoomSettings: (settings: {
+    theme: EditorState["theme"];
+    canvasBg: string;
+    hasCustomCanvasBg: boolean;
+  }) => void;
+  clearRoomSettingsFromRemote: () => void;
 
   setSelectedShapeIds: (ids: string[]) => void;
   toggleSelectedShape: (id: string) => void;
@@ -56,6 +79,7 @@ type EditorState = {
   disconnectWebSocket: () => void;
   updateCursor: (userId: string, username: string, x: number, y: number) => void;
   removeCursor: (userId: string) => void;
+  setEditingTextId: (id: string | null) => void;
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -80,6 +104,19 @@ export const useEditorStore = create<EditorState>((set) => ({
     edgeStyle: "sharp",
     rotation: 0,
   },
+  currentTextStyle: {
+    fontSize: 20,
+    fontFamily: "Virgil",
+    fontWeight: "normal",
+    fontStyle: "normal",
+    textAlign: "left",
+  },
+  theme: "light",
+  canvasBg: "#ffffff",
+  hasCustomCanvasBg: false,
+  roomSettingsFromRemote: false,
+  pendingRoomSettings: null,
+  editingTextId: null,
 
   // actions
 
@@ -150,6 +187,10 @@ export const useEditorStore = create<EditorState>((set) => ({
     set((state) => ({
       currentStyle: { ...state.currentStyle, ...style },
     })),
+  setCurrentTextStyle: (style) =>
+    set((state) => ({
+      currentTextStyle: { ...state.currentTextStyle, ...style },
+    })),
   syncStyleFromShape: (shape) =>
     set((state) => ({
       currentStyle: {
@@ -162,7 +203,86 @@ export const useEditorStore = create<EditorState>((set) => ({
         edgeStyle: shape.edgeStyle ?? state.currentStyle.edgeStyle,
         rotation: shape.rotation ?? state.currentStyle.rotation,
       },
+      currentTextStyle:
+        shape.type === "text"
+          ? {
+              fontSize: shape.fontSize ?? state.currentTextStyle.fontSize,
+              fontFamily: shape.fontFamily ?? state.currentTextStyle.fontFamily,
+              fontWeight: shape.fontWeight ?? state.currentTextStyle.fontWeight,
+              fontStyle: shape.fontStyle ?? state.currentTextStyle.fontStyle,
+              textAlign: shape.textAlign ?? state.currentTextStyle.textAlign,
+            }
+          : state.currentTextStyle,
     })),
+  setTheme: (theme) =>
+    set((state) => {
+      const settings: RoomSettings = {
+        theme,
+        canvasBg: state.canvasBg,
+        hasCustomCanvasBg: state.hasCustomCanvasBg,
+      };
+      if (state.roomId) {
+        if (wsManager.isConnected()) {
+          wsManager.send({
+            type: "room_settings_update",
+            roomId: state.roomId,
+            settings,
+          });
+          return { theme, pendingRoomSettings: null, roomSettingsFromRemote: false };
+        }
+        return { theme, pendingRoomSettings: settings, roomSettingsFromRemote: false };
+      }
+      return { theme, roomSettingsFromRemote: false };
+    }),
+  setCanvasBg: (canvasBg) =>
+    set((state) => {
+      const settings: RoomSettings = {
+        theme: state.theme,
+        canvasBg,
+        hasCustomCanvasBg: state.hasCustomCanvasBg,
+      };
+      if (state.roomId) {
+        if (wsManager.isConnected()) {
+          wsManager.send({
+            type: "room_settings_update",
+            roomId: state.roomId,
+            settings,
+          });
+          return { canvasBg, pendingRoomSettings: null, roomSettingsFromRemote: false };
+        }
+        return { canvasBg, pendingRoomSettings: settings, roomSettingsFromRemote: false };
+      }
+      return { canvasBg, roomSettingsFromRemote: false };
+    }),
+  setHasCustomCanvasBg: (hasCustomCanvasBg) =>
+    set((state) => {
+      const settings: RoomSettings = {
+        theme: state.theme,
+        canvasBg: state.canvasBg,
+        hasCustomCanvasBg,
+      };
+      if (state.roomId) {
+        if (wsManager.isConnected()) {
+          wsManager.send({
+            type: "room_settings_update",
+            roomId: state.roomId,
+            settings,
+          });
+          return { hasCustomCanvasBg, pendingRoomSettings: null, roomSettingsFromRemote: false };
+        }
+        return { hasCustomCanvasBg, pendingRoomSettings: settings, roomSettingsFromRemote: false };
+      }
+      return { hasCustomCanvasBg, roomSettingsFromRemote: false };
+    }),
+  setRoomSettings: (settings) =>
+    set({
+      theme: settings.theme,
+      canvasBg: settings.canvasBg,
+      hasCustomCanvasBg: settings.hasCustomCanvasBg,
+      roomSettingsFromRemote: true,
+      pendingRoomSettings: null,
+    }),
+  clearRoomSettingsFromRemote: () => set({ roomSettingsFromRemote: false }),
   removeShape: (id: string) =>
     set((state) => {
       const newShapes = state.shapes.filter((s) => s.id !== id);
@@ -342,6 +462,17 @@ export const useEditorStore = create<EditorState>((set) => ({
                 });
               }
             }
+            {
+              const latest = useEditorStore.getState();
+              if (latest.roomId && latest.pendingRoomSettings) {
+                wsManager.send({
+                  type: "room_settings_update",
+                  roomId: latest.roomId,
+                  settings: latest.pendingRoomSettings,
+                });
+                useEditorStore.setState({ pendingRoomSettings: null });
+              }
+            }
             break;
 
           case "shape_updated":
@@ -434,6 +565,17 @@ export const useEditorStore = create<EditorState>((set) => ({
           case "error":
             console.error("WebSocket error:", message.message);
             break;
+          case "room_settings_updated":
+            if (message.roomId === state.roomId) {
+              useEditorStore.setState({
+                theme: message.settings.theme,
+                canvasBg: message.settings.canvasBg,
+                hasCustomCanvasBg: message.settings.hasCustomCanvasBg,
+                roomSettingsFromRemote: true,
+                pendingRoomSettings: null,
+              });
+            }
+            break;
         }
       });
     } catch (error) {
@@ -465,4 +607,5 @@ export const useEditorStore = create<EditorState>((set) => ({
       return { cursors: newCursors };
     });
   },
+  setEditingTextId: (id) => set({ editingTextId: id }),
 }));

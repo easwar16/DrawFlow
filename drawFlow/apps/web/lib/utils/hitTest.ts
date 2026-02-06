@@ -1,6 +1,6 @@
 "use client";
 
-import { Shape } from "../utils";
+import { Shape, getTextBounds } from "../utils";
 import { Point } from "@/types/shape/shape";
 
 const HIT_TOLERANCE = 6; // pixels
@@ -22,12 +22,7 @@ export function hitTest(point: Point, shape: Shape): boolean {
     case "circle":
       return hitCircle(testPoint, shape);
     case "text":
-      return hitRect(testPoint, {
-        x: shape.x,
-        y: shape.y - shape.h,
-        w: shape.w,
-        h: shape.h,
-      });
+      return hitRect(testPoint, getTextBounds(shape));
     case "line":
       return hitLine(testPoint, shape.startPoint, shape.endPoint);
     case "arrow":
@@ -44,13 +39,6 @@ export function hitTest(point: Point, shape: Shape): boolean {
       return hitRhombus(testPoint, shape);
     case "pencil":
       return hitPencil(testPoint, shape.points);
-    case "text":
-      return hitRect(testPoint, {
-        x: shape.x,
-        y: shape.y - shape.h,
-        w: shape.w,
-        h: shape.h,
-      });
     default:
       return false;
   }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePathname } from "next/navigation";
 import { getUsername, setUsername } from "@/lib/storage";
 import { wsManager } from "@/lib/websocket/websocket";
 
@@ -16,6 +17,7 @@ export function ActiveSession({
   isOwner: boolean;
 }) {
   const [username, setLocalUsername] = useState("");
+  const pathname = usePathname();
   const ensureCursorId = () => {
     if (typeof window === "undefined") return "self";
     const key = "drawflow:cursorId";
@@ -43,7 +45,7 @@ export function ActiveSession({
 
   const url =
     typeof window !== "undefined"
-      ? `${window.location.origin}/draw?roomId=${encodeURIComponent(roomId)}`
+      ? `${window.location.origin}${pathname}?roomId=${encodeURIComponent(roomId)}`
       : "";
 
   const copy = async () => {

@@ -1,7 +1,8 @@
 import { Point, ToolType } from "@/types/shape/shape";
 import type { Shape, ToolController } from "../utils";
-import { DEFAULT_SHAPE_STYLE } from "../utils";
+import { DEFAULT_SHAPE_STYLE, getTextBounds } from "../utils";
 import { useEditorStore } from "@/store/editor";
+import { hitTest } from "../utils/hitTest";
 import {
   ROTATE_HANDLE_OFFSET,
   ROTATE_HANDLE_RADIUS,
@@ -36,6 +37,10 @@ class CanvasManager {
   private editingTextId: string | null = null;
   private editingTextBounds: { x: number; y: number; w: number; h: number } | null =
     null;
+  private editingTextarea: HTMLTextAreaElement | null = null;
+  private editingTextareaId: string | null = null;
+  private editingPreviousSelection: string[] | null = null;
+  private creatingTextPoint: Point | null = null;
 
   private constructor() {}
   private onWheel = (e: WheelEvent) => {
@@ -391,12 +396,7 @@ class CanvasManager {
       case "rect":
         return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
       case "text":
-        return {
-          x: shape.x,
-          y: shape.y - shape.h,
-          w: shape.w,
-          h: shape.h,
-        };
+        return getTextBounds(shape);
       case "line":
       case "arrow": {
         const points = [
@@ -836,8 +836,9 @@ class CanvasManager {
           this.ctx.restore();
           return;
         }
-        this.ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
+        this.ctx.font = `${shape.fontStyle ?? "normal"} ${shape.fontWeight ?? "normal"} ${shape.fontSize}px ${shape.fontFamily}`;
         this.ctx.fillStyle = shape.stroke ?? shape.color ?? stroke;
+        this.ctx.textAlign = shape.textAlign ?? "left";
         this.ctx.fillText(shape.text, shape.x, shape.y);
         break;
       case "circle":
@@ -1009,6 +1010,7 @@ class CanvasManager {
     this.activeTool?.onPointerUp(e);
   };
   private onDoubleClick = (e: MouseEvent) => {
+    if (this.handleTextDoubleClick(e)) return;
     this.activeTool?.onDoubleClick?.(e);
   };
 
@@ -1141,6 +1143,7 @@ class CanvasManager {
 
   setEditingTextId(id: string | null) {
     this.editingTextId = id;
+    useEditorStore.getState().setEditingTextId(id);
     if (!id) {
       this.editingTextBounds = null;
     }
@@ -1163,6 +1166,305 @@ class CanvasManager {
 
     // activate new tool
     this.activeTool?.onActivate?.(this.canvas);
+  }
+
+  private handleTextDoubleClick(e: MouseEvent) {
+    if (!this.canvas) return false;
+    const p = this.toCanvasPoint({
+      clientX: e.clientX,
+      clientY: e.clientY,
+    });
+    const { shapes, setSelectedShapeIds } = useEditorStore.getState();
+
+    for (const shape of [...shapes].reverse()) {
+      if (shape.type !== "text") continue;
+      if (!hitTest(p, shape)) continue;
+      setSelectedShapeIds([shape.id]);
+      this.startTextEdit(shape);
+      return true;
+    }
+
+    this.startTextCreate(p);
+    return true;
+  }
+
+  private startTextEdit(shape: Extract<Shape, { type: "text" }>) {
+    this.cleanupTextEdit();
+
+    const canvas = (this as any).canvas as HTMLCanvasElement;
+    const container = canvas.parentElement!;
+    container.style.position ||= "relative";
+
+    const { selectedShapeIds, setSelectedShapeIds, syncStyleFromShape } =
+      useEditorStore.getState();
+    this.editingPreviousSelection = selectedShapeIds;
+    setSelectedShapeIds([]);
+    syncStyleFromShape(shape);
+    this.render();
+    this.setEditingTextId(shape.id);
+    this.setEditingTextBounds(null);
+    this.render();
+
+    const textarea = document.createElement("textarea");
+    const baseScreen = this.toScreenPoint({ x: shape.x, y: shape.y - shape.h });
+    const textAlign = shape.textAlign ?? "left";
+
+    textarea.value = shape.text;
+    textarea.style.position = "absolute";
+    textarea.style.top = `${baseScreen.y}px`;
+    textarea.style.fontSize = `${shape.fontSize * this.getZoom()}px`;
+    textarea.style.fontFamily = shape.fontFamily;
+    textarea.style.fontWeight = shape.fontWeight ?? "normal";
+    textarea.style.fontStyle = shape.fontStyle ?? "normal";
+    textarea.style.textAlign = textAlign;
+    textarea.style.border = "none";
+    textarea.style.background = "transparent";
+    textarea.style.color = shape.color;
+    textarea.style.resize = "none";
+    textarea.style.outline = "none";
+    textarea.style.boxShadow = "none";
+    textarea.style.padding = "2px 4px";
+    textarea.style.lineHeight = "1.2";
+    textarea.style.letterSpacing = "normal";
+    textarea.style.webkitTextFillColor = shape.color;
+    textarea.style.fontSmoothing = "antialiased";
+    textarea.style.webkitFontSmoothing = "antialiased";
+    textarea.style.overflow = "hidden";
+    textarea.style.boxSizing = "border-box";
+    textarea.spellcheck = false;
+    textarea.style.minWidth = "40px";
+    textarea.style.minHeight = `${shape.fontSize * this.getZoom() + 6}px`;
+
+    const positionTextarea = () => {
+      const width = parseFloat(textarea.style.width || "0");
+      let left = baseScreen.x;
+      if (textAlign === "center") {
+        left -= width / 2;
+      } else if (textAlign === "right") {
+        left -= width;
+      }
+      textarea.style.left = `${left}px`;
+    };
+
+    const resizeTextarea = () => {
+      this.ctx.font = `${shape.fontStyle ?? "normal"} ${shape.fontWeight ?? "normal"} ${shape.fontSize}px ${shape.fontFamily}`;
+      const text = textarea.value || " ";
+      const textWidth = this.ctx.measureText(text).width * this.getZoom();
+      const nextWidth = Math.max(textWidth + 8, 40);
+      textarea.style.width = `${nextWidth}px`;
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+      positionTextarea();
+    };
+
+    resizeTextarea();
+    container.appendChild(textarea);
+    textarea.focus();
+    const end = textarea.value.length;
+    textarea.setSelectionRange(end, end);
+
+    const commit = () => this.commitTextEdit(shape.id, textarea.value);
+    textarea.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+      }
+      if (event.key === "Escape") {
+        this.cleanupTextEdit(true);
+      }
+    });
+    textarea.addEventListener("input", resizeTextarea);
+    textarea.addEventListener("blur", commit);
+
+    this.editingTextarea = textarea;
+    this.editingTextareaId = shape.id;
+  }
+
+  private startTextCreate(point: Point) {
+    this.cleanupTextEdit();
+    this.creatingTextPoint = point;
+
+    const canvas = (this as any).canvas as HTMLCanvasElement;
+    const container = canvas.parentElement!;
+    container.style.position ||= "relative";
+
+    const { currentStyle, currentTextStyle, setSelectedShapeIds } =
+      useEditorStore.getState();
+
+    setSelectedShapeIds([]);
+    this.setEditingTextId("new");
+    this.setEditingTextBounds(null);
+    this.render();
+
+    const textarea = document.createElement("textarea");
+    const fontSize = currentTextStyle.fontSize ?? 20;
+    const fontFamily = currentTextStyle.fontFamily ?? "Virgil";
+    const fontWeight = currentTextStyle.fontWeight ?? "normal";
+    const fontStyle = currentTextStyle.fontStyle ?? "normal";
+    const textAlign = currentTextStyle.textAlign ?? "left";
+
+    const baseScreen = this.toScreenPoint({ x: point.x, y: point.y - fontSize });
+    textarea.style.position = "absolute";
+    textarea.style.top = `${baseScreen.y}px`;
+    textarea.style.fontSize = `${fontSize * this.getZoom()}px`;
+    textarea.style.fontFamily = fontFamily;
+    textarea.style.fontWeight = fontWeight;
+    textarea.style.fontStyle = fontStyle;
+    textarea.style.textAlign = textAlign;
+    textarea.style.border = "none";
+    textarea.style.background = "transparent";
+    textarea.style.color = currentStyle.stroke || "black";
+    textarea.style.resize = "none";
+    textarea.style.outline = "none";
+    textarea.style.boxShadow = "none";
+    textarea.style.padding = "2px 4px";
+    textarea.style.lineHeight = "1.2";
+    textarea.style.letterSpacing = "normal";
+    textarea.style.webkitTextFillColor = currentStyle.stroke || "black";
+    textarea.style.fontSmoothing = "antialiased";
+    textarea.style.webkitFontSmoothing = "antialiased";
+    textarea.style.overflow = "hidden";
+    textarea.style.boxSizing = "border-box";
+    textarea.spellcheck = false;
+    textarea.style.minWidth = "40px";
+    textarea.style.minHeight = `${fontSize * this.getZoom() + 6}px`;
+    textarea.rows = 1;
+
+    const positionTextarea = () => {
+      const width = parseFloat(textarea.style.width || "0");
+      let left = baseScreen.x;
+      if (textAlign === "center") {
+        left -= width / 2;
+      } else if (textAlign === "right") {
+        left -= width;
+      }
+      textarea.style.left = `${left}px`;
+    };
+
+    const resizeTextarea = () => {
+      this.ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+      const text = textarea.value || " ";
+      const textWidth = this.ctx.measureText(text).width * this.getZoom();
+      const nextWidth = Math.max(textWidth + 8, 40);
+      textarea.style.width = `${nextWidth}px`;
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+      positionTextarea();
+    };
+
+    resizeTextarea();
+    container.appendChild(textarea);
+    textarea.focus();
+
+    const commit = () => this.commitTextCreate(textarea.value);
+    textarea.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+      }
+      if (event.key === "Escape") {
+        this.cleanupTextEdit(true);
+      }
+    });
+    textarea.addEventListener("input", resizeTextarea);
+    textarea.addEventListener("blur", commit);
+
+    this.editingTextarea = textarea;
+    this.editingTextareaId = "new";
+  }
+
+  private commitTextEdit(id: string, text: string) {
+    const { updateShape, removeShape, setSelectedShapeIds } =
+      useEditorStore.getState();
+
+    if (!text.trim()) {
+      removeShape(id);
+      setSelectedShapeIds([]);
+      this.cleanupTextEdit(false);
+      return;
+    }
+
+    updateShape(id, (shape) => {
+      if (shape.type !== "text") return shape;
+      this.ctx.font = `${shape.fontStyle ?? "normal"} ${shape.fontWeight ?? "normal"} ${shape.fontSize}px ${shape.fontFamily}`;
+      const w = this.ctx.measureText(text).width;
+      const h = shape.fontSize;
+      return { ...shape, text, w, h };
+    });
+
+    this.cleanupTextEdit(false);
+    setSelectedShapeIds([id]);
+    this.render();
+  }
+
+  private commitTextCreate(text: string) {
+    const { addShape, currentStyle, currentTextStyle, setSelectedShapeIds } =
+      useEditorStore.getState();
+    const point = this.creatingTextPoint;
+    if (!point) {
+      this.cleanupTextEdit(true);
+      return;
+    }
+    if (!text.trim()) {
+      this.cleanupTextEdit(true);
+      return;
+    }
+
+    const fontSize = currentTextStyle.fontSize ?? 20;
+    const fontFamily = currentTextStyle.fontFamily ?? "Virgil";
+    const fontWeight = currentTextStyle.fontWeight ?? "normal";
+    const fontStyle = currentTextStyle.fontStyle ?? "normal";
+    const textAlign = currentTextStyle.textAlign ?? "left";
+    this.ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+    const w = this.ctx.measureText(text).width;
+    const h = fontSize;
+    const id = crypto.randomUUID();
+    addShape({
+      id,
+      type: "text",
+      x: point.x,
+      y: point.y,
+      text,
+      fontSize,
+      fontFamily,
+      fontWeight,
+      fontStyle,
+      textAlign,
+      color: currentStyle.stroke,
+      stroke: currentStyle.stroke,
+      fill: currentStyle.fill,
+      strokeWidth: currentStyle.strokeWidth,
+      opacity: currentStyle.opacity,
+      strokeStyle: currentStyle.strokeStyle,
+      sloppiness: currentStyle.sloppiness,
+      edgeStyle: currentStyle.edgeStyle,
+      rotation: currentStyle.rotation,
+      w,
+      h,
+    });
+
+    this.creatingTextPoint = null;
+    this.cleanupTextEdit(false);
+    setSelectedShapeIds([id]);
+    this.render();
+  }
+
+  private cleanupTextEdit(restoreSelection = false) {
+    if (this.editingTextarea) {
+      const parent = this.editingTextarea.parentElement;
+      if (parent && parent.contains(this.editingTextarea)) {
+        parent.removeChild(this.editingTextarea);
+      }
+      this.editingTextarea = null;
+      this.editingTextareaId = null;
+    }
+    this.setEditingTextId(null);
+    this.setEditingTextBounds(null);
+    if (restoreSelection && this.editingPreviousSelection) {
+      useEditorStore.getState().setSelectedShapeIds(this.editingPreviousSelection);
+    }
+    this.editingPreviousSelection = null;
+    this.render();
   }
 
   renderCursors(cursors: Array<{ userId: string; username: string; x: number; y: number }>) {

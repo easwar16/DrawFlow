@@ -103,6 +103,18 @@ wss.on("connection", (socket, Request) => {
               shapes: shapes,
             })
           );
+
+          const settingsKey = `room:${parsedData.roomId}:settings`;
+          const settingsData = await redisClient.get(settingsKey);
+          if (settingsData) {
+            socket.send(
+              JSON.stringify({
+                type: "room_settings_updated",
+                roomId: parsedData.roomId,
+                settings: JSON.parse(settingsData),
+              })
+            );
+          }
         } catch (error) {
           console.error("Error loading shapes from Redis:", error);
           // Still send room_joined with empty shapes so client can continue
@@ -146,6 +158,22 @@ wss.on("connection", (socket, Request) => {
 
       if (parsedData.type === "shapes_sync") {
         await handleShapesSync(parsedData.roomId, parsedData.shapes);
+      }
+
+      if (parsedData.type === "room_settings_update") {
+        const settingsKey = `room:${parsedData.roomId}:settings`;
+        if (redisClient.isOpen) {
+          try {
+            await redisClient.set(settingsKey, JSON.stringify(parsedData.settings));
+          } catch (error) {
+            console.error("Error saving room settings:", error);
+          }
+        }
+        broadcastToRoom(parsedData.roomId, {
+          type: "room_settings_updated",
+          roomId: parsedData.roomId,
+          settings: parsedData.settings,
+        });
       }
 
       if (parsedData.type === "user_update") {
