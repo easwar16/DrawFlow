@@ -5,10 +5,9 @@ canvas, hand-drawn styling, and real-time collaboration via WebSockets.
 
 ## Repository layout (Turborepo)
 
-- `drawFlow/` - Turborepo root
-- `drawFlow/apps/web` - Next.js web client
-- `drawFlow/apps/websocket` - WebSocket collaboration server
-- `drawFlow/packages/*` - Shared configs/packages
+- `apps/web` - Next.js web client
+- `apps/websocket` - WebSocket collaboration server
+- `packages/*` - Shared configs/packages
 
 ## Prerequisites
 
@@ -18,8 +17,8 @@ canvas, hand-drawn styling, and real-time collaboration via WebSockets.
 
 ## Getting started
 
-1. Go to the Turborepo root:
-   - `cd drawFlow`
+1. Go to the repository root:
+   - `cd DrawFlow`
 2. Install dependencies:
    - `pnpm install`
 3. Configure environment:
@@ -33,7 +32,7 @@ canvas, hand-drawn styling, and real-time collaboration via WebSockets.
 
 ## Useful scripts
 
-From the Turborepo root (`drawFlow/`):
+From the repository root:
 
 - `pnpm dev` - Run all apps in development mode
 - `pnpm build` - Build all apps
