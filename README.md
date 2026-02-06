@@ -3,6 +3,23 @@
 DrawFlow is a modern, web-based drawing app for visualizing ideas with an infinite
 canvas, hand-drawn styling, and real-time collaboration via WebSockets.
 
+## Screenshots
+
+Landing page:
+
+![Landing hero](docs/screenshots/landing-hero.png)
+![Landing features](docs/screenshots/landing-features.png)
+![Landing preview](docs/screenshots/landing-preview.png)
+![Landing workflow](docs/screenshots/landing-workflow.png)
+![Landing call-to-action](docs/screenshots/landing-cta.png)
+
+Draw page:
+
+![Canvas workspace](docs/screenshots/draw-canvas.png)
+![Live collaboration dialog](docs/screenshots/draw-share.png)
+![Export dialog](docs/screenshots/draw-export.png)
+![Help & shortcuts](docs/screenshots/help-shortcuts.png)
+
 ## Repository layout (Turborepo)
 
 - `apps/web` - Next.js web client
