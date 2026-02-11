@@ -14,7 +14,6 @@ class WebSocketManager {
   private currentRoomId: string | null = null;
 
   constructor() {
-    // WebSocket server URL - adjust port if needed
     this.url = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
   }
 
@@ -34,15 +33,13 @@ class WebSocketManager {
       this.currentRoomId = roomId;
 
       try {
-        // Connect without token (login-less service)
         this.ws = new WebSocket(this.url);
 
         this.ws.onopen = () => {
           console.log("WebSocket connected");
           this.isConnecting = false;
           this.reconnectAttempts = 0;
-          
-          // Send join_room message immediately after connection with username
+
           const username = getUsername();
           this.send({ type: "join_room", roomId, username });
           resolve();
@@ -60,7 +57,6 @@ class WebSocketManager {
         this.ws.onerror = (error) => {
           console.error("WebSocket connection error. Check if server is running on", this.url);
           this.isConnecting = false;
-          // WebSocket error events don't have useful properties, create a proper error
           reject(new Error(`Failed to connect to WebSocket server at ${this.url}`));
         };
 
@@ -69,7 +65,6 @@ class WebSocketManager {
           this.isConnecting = false;
           this.ws = null;
 
-          // Attempt to reconnect if we have a roomId
           if (this.currentRoomId && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
@@ -117,5 +112,4 @@ class WebSocketManager {
   }
 }
 
-// Export singleton instance
 export const wsManager = new WebSocketManager();

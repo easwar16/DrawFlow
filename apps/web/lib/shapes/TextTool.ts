@@ -86,8 +86,6 @@ export class TextTool implements ToolController {
       textarea.style.height = "auto";
       textarea.style.height = `${textarea.scrollHeight}px`;
       positionTextarea();
-
-      // keep selection hidden while typing
     };
 
     cm.setEditingTextBounds(null);

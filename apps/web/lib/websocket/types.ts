@@ -6,7 +6,6 @@ export type RoomSettings = {
   hasCustomCanvasBg: boolean;
 };
 
-// Client → Server message types
 export type ClientMessage =
   | { type: "join_room"; roomId: string; username: string }
   | { type: "room_settings_update"; roomId: string; settings: RoomSettings }
@@ -29,7 +28,6 @@ export type ClientMessage =
       clientId: string;
     };
 
-// Server → Client message types
 export type ServerMessage =
   | { type: "room_joined"; roomId: string; shapes: Shape[] }
   | { type: "room_settings_updated"; roomId: string; settings: RoomSettings }
@@ -57,11 +55,10 @@ export type ServerMessage =
   | { type: "user_left"; roomId: string; userId: string }
   | { type: "error"; message: string };
 
-// Cursor position type
 export type CursorPosition = {
   userId: string;
   username: string;
   x: number;
   y: number;
-  lastSeen: number; // timestamp for cleanup
+  lastSeen: number;
 };

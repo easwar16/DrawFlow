@@ -3,7 +3,7 @@
 import { Shape, getTextBounds } from "../utils";
 import { Point } from "@/types/shape/shape";
 
-const HIT_TOLERANCE = 6; // pixels
+const HIT_TOLERANCE = 6;
 
 export function hitTest(point: Point, shape: Shape): boolean {
   const rotation = shape.rotation ?? 0;
@@ -65,7 +65,6 @@ function hitRhombus(
 ): boolean {
   const polygon = [shape.top, shape.right, shape.bottom, shape.left];
 
-  // 🔹 Fast bounding-box reject (performance)
   const xs = polygon.map((pt) => pt.x);
   const ys = polygon.map((pt) => pt.y);
 
@@ -122,7 +121,6 @@ function hitLine(p: Point, a: Point, b: Point): boolean {
   const lengthSq = dx * dx + dy * dy;
   if (lengthSq === 0) return false;
 
-  // projection factor
   const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq;
 
   if (t < 0 || t > 1) return false;

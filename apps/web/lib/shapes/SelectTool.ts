@@ -48,9 +48,6 @@ export class SelectTool implements ToolController {
     CanvasManager.getInstance().setSelectionRect(null);
   }
 
-  // -----------------------------
-  // Pointer Down
-  // -----------------------------
   onPointerDown(e: PointerEvent) {
     if (useEditorStore.getState().isToolLocked) {
       return;
@@ -104,20 +101,17 @@ export class SelectTool implements ToolController {
       }
     }
 
-    // 🔼 find topmost hit
     for (const shape of [...shapes].reverse()) {
       if (!hitTest(p, shape)) continue;
 
       const alreadySelected = selectedShapeIds.includes(shape.id);
 
-      // ✅ click inside selection → drag all
       if (alreadySelected) {
         this.dragging = true;
         this.dragStart = p;
         return;
       }
 
-      // ✅ new selection
       setSelectedShapeIds(
         e.shiftKey ? [...selectedShapeIds, shape.id] : [shape.id],
       );
@@ -128,7 +122,6 @@ export class SelectTool implements ToolController {
       return;
     }
 
-    // 🟥 empty canvas → marquee
     this.dragging = false;
 
     if (!e.shiftKey) {
@@ -140,9 +133,6 @@ export class SelectTool implements ToolController {
 
   onDoubleClick(_e: MouseEvent) {}
 
-  // -----------------------------
-  // Pointer Move
-  // -----------------------------
   onPointerMove(e: PointerEvent) {
     if (useEditorStore.getState().isToolLocked) {
       return;
@@ -168,7 +158,6 @@ export class SelectTool implements ToolController {
       return;
     }
 
-    // 🟦 marquee
     if (this.isMarquee && this.marqueeStart) {
       const x = Math.min(this.marqueeStart.x, p.x);
       const y = Math.min(this.marqueeStart.y, p.y);
@@ -188,7 +177,6 @@ export class SelectTool implements ToolController {
 
     const { selectedShapeIds, updateShape } = useEditorStore.getState();
 
-    // 🔥 MOVE ALL SELECTED SHAPES
     for (const id of selectedShapeIds) {
       updateShape(id, (shape) => {
         switch (shape.type) {
@@ -241,9 +229,6 @@ export class SelectTool implements ToolController {
     }
   }
 
-  // -----------------------------
-  // Pointer Up
-  // -----------------------------
   onPointerUp() {
     if (useEditorStore.getState().isToolLocked) {
       this.dragging = false;
@@ -292,9 +277,6 @@ export class SelectTool implements ToolController {
     cm.setSelectionRect(null);
   }
 
-  // -----------------------------
-  // Helpers
-  // -----------------------------
   private startMarquee(p: Point) {
     this.isMarquee = true;
     this.marqueeStart = p;

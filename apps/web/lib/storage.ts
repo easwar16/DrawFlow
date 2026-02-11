@@ -31,7 +31,6 @@ export function loadShapes(): unknown[] | null {
     const stored = localStorage.getItem("drawflow:shapes");
     if (!stored) return null;
     const parsed = JSON.parse(stored);
-    // Validate it's an array
     if (Array.isArray(parsed)) {
       return parsed;
     }

@@ -86,7 +86,6 @@
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --canvas-bg: #ffffff;
-  /* --canvas-bg: #102a2a; */
 }
 .toolbar {
   position: fixed;

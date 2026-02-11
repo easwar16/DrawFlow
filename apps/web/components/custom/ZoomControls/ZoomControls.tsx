@@ -14,7 +14,6 @@ export default function ZoomControls() {
   const future = useEditorStore((s) => s.future);
 
   useEffect(() => {
-    // 👇 subscribe instead of polling
     const unsubscribe = cm.subscribeZoom((z) => {
       setZoom(z);
     });
@@ -28,7 +27,6 @@ export default function ZoomControls() {
 
     const rect = canvas.getBoundingClientRect();
 
-    // 👇 convert DOM center → canvas/world space
     const center = {
       x: (rect.width / 2 - cm["panX"]) / cm.getZoom(),
       y: (rect.height / 2 - cm["panY"]) / cm.getZoom(),
@@ -39,7 +37,6 @@ export default function ZoomControls() {
 
   return (
     <div className="fixed bottom-6 left-6 flex items-center gap-3">
-      {/* Zoom Control Group */}
       <div className="flex items-center gap-1 rounded-xl bg-gray-100 dark:bg-[#1f1f1f] px-3 py-2 shadow dark:shadow-black/40">
         <button
           onClick={() => zoomAtCenter("out")}
@@ -64,7 +61,6 @@ export default function ZoomControls() {
         </button>
       </div>
 
-      {/* Undo/Redo Control Group */}
       <div className="flex items-center gap-1 rounded-xl bg-gray-100 dark:bg-[#1f1f1f] px-2 py-2 shadow dark:shadow-black/40">
         <button
           onClick={() => {

@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import axios from "axios";
 import { CheckCircle2Icon, Eye, EyeOff } from "lucide-react";
@@ -138,7 +137,6 @@ export default function Auth() {
           {isSignin ? "SignIn" : "Signup"}{" "}
         </div>
 
-        {/* Email */}
         <div className="mb-2">
           <div className="grid gap-3">
             <Label className="text-white" htmlFor="email">
@@ -194,7 +192,6 @@ export default function Auth() {
           <></>
         )}
 
-        {/* Password + Eye */}
         <div className="relative mb-8">
           <div className="grid gap-3">
             <Label className="text-white" htmlFor="password">
@@ -205,7 +202,7 @@ export default function Auth() {
               ref={passwordRef}
               type={show ? "text" : "password"}
               placeholder="Password"
-              className="text-lg pr-12 text-white" // space for the eye icon
+              className="text-lg pr-12 text-white"
             />
 
             <button
@@ -225,7 +222,6 @@ export default function Auth() {
           )}
         </div>
 
-        {/* Submit */}
         <div className="flex justify-center">
           <Button
             size={"lg"}

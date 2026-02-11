@@ -1,6 +1,5 @@
 "use client";
 
-// src/components/share/StartSession.tsx
 import { Button } from "@/components/ui/button";
 
 export function StartSession({ onStart }: { onStart: () => void }) {

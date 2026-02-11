@@ -51,7 +51,6 @@ export default function Preview() {
     const width = canvas.offsetWidth;
     const height = canvas.offsetHeight;
 
-    // Draw grid
     ctx.strokeStyle = "rgba(0, 0, 0, 0.05)";
     ctx.lineWidth = 1;
     const gridSize = 20;
@@ -70,7 +69,6 @@ export default function Preview() {
       ctx.stroke();
     }
 
-    // Animation timing
     let startTime: number | null = null;
     const animationDuration = 3000;
 
@@ -98,7 +96,6 @@ export default function Preview() {
 
       ctx.beginPath();
 
-      // Top edge
       if (currentLength > 0) {
         const topProgress = Math.min(currentLength / w, 1);
         ctx.moveTo(x + Math.random() * 2, y + Math.random() * 2);
@@ -108,7 +105,6 @@ export default function Preview() {
         );
       }
 
-      // Right edge
       if (currentLength > w) {
         const rightProgress = Math.min((currentLength - w) / h, 1);
         ctx.moveTo(x + w + Math.random() * 2, y + Math.random() * 2);
@@ -118,7 +114,6 @@ export default function Preview() {
         );
       }
 
-      // Bottom edge
       if (currentLength > w + h) {
         const bottomProgress = Math.min((currentLength - w - h) / w, 1);
         ctx.moveTo(x + w + Math.random() * 2, y + h + Math.random() * 2);
@@ -128,7 +123,6 @@ export default function Preview() {
         );
       }
 
-      // Left edge
       if (currentLength > w * 2 + h) {
         const leftProgress = Math.min((currentLength - w * 2 - h) / h, 1);
         ctx.moveTo(x + Math.random() * 2, y + h + Math.random() * 2);
@@ -231,7 +225,6 @@ export default function Preview() {
 
       ctx.clearRect(0, 0, width, height);
 
-      // Redraw grid
       ctx.strokeStyle = "rgba(0, 0, 0, 0.05)";
       ctx.lineWidth = 1;
       for (let x = 0; x < width; x += gridSize) {
@@ -255,7 +248,6 @@ export default function Preview() {
           .trim() || darkColor;
       const lightFill = "rgba(34, 197, 94, 0.1)";
 
-      // Draw shapes with staggered timing
       drawHandDrawnRect(60, 80, 120, 80, progress * 3, darkColor, lightFill);
       drawText("Step 1", 120, 125, progress * 3, textColor);
 
@@ -277,7 +269,6 @@ export default function Preview() {
       drawCircle(540, 120, 50, (progress - 0.6) * 3, darkColor, lightFill);
       drawText("Step 3", 540, 125, (progress - 0.6) * 3, textColor);
 
-      // Second row
       drawArrow(540, 180, 540, 240, (progress - 0.75) * 3, primaryColor);
 
       drawHandDrawnRect(

@@ -11,17 +11,14 @@ const cloneShapes = (shapes: Shape[]) =>
     : JSON.parse(JSON.stringify(shapes));
 
 type EditorState = {
-  // domain
   shapes: Shape[];
   roomId: string | null;
   past: Shape[][];
   future: Shape[][];
-
-  // interaction
   currentTool: ToolType;
   isToolLocked: boolean;
   selectedShapeIds: string[];
-  cursors: Map<string, CursorPosition>; // userId -> cursor position
+  cursors: Map<string, CursorPosition>;
   currentStyle: {
     stroke: string;
     fill: string;
@@ -46,7 +43,6 @@ type EditorState = {
   pendingRoomSettings: RoomSettings | null;
   editingTextId: string | null;
 
-  // actions
   setRoomId: (id: string | null) => void;
   setShapes: (shapes: Shape[]) => void;
   setTool: (tool: ToolType) => void;
@@ -83,13 +79,10 @@ type EditorState = {
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
-  // domain
   shapes: [],
   roomId: null,
   past: [],
   future: [],
-
-  // interaction
   currentTool: "select",
   isToolLocked: false,
   selectedShapeIds: [],
@@ -118,8 +111,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   pendingRoomSettings: null,
   editingTextId: null,
 
-  // actions
-
   setSelectedShapeIds: (ids: string[]) => set({ selectedShapeIds: ids }),
 
   toggleSelectedShape: (id: string) =>
@@ -130,7 +121,6 @@ export const useEditorStore = create<EditorState>((set) => ({
     })),
   setRoomId: (id) => {
     set({ roomId: id });
-    // Disconnect WebSocket if roomId is cleared
     if (id === null) {
       wsManager.disconnect();
     }
@@ -139,11 +129,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   setShapes: (shapes) =>
     set((state) => {
       const newShapes = cloneShapes(shapes);
-      // Save to localStorage only when not in a room
       if (state.roomId === null) {
         saveShapes(newShapes);
       } else {
-        // Sync to WebSocket when in a room
         wsManager.send({
           type: "shapes_sync",
           roomId: state.roomId,
@@ -240,7 +228,7 @@ export const useEditorStore = create<EditorState>((set) => ({
         theme: state.theme,
         canvasBg,
         hasCustomCanvasBg: state.hasCustomCanvasBg,
-      };
+      }; 
       if (state.roomId) {
         if (wsManager.isConnected()) {
           wsManager.send({
@@ -286,11 +274,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   removeShape: (id: string) =>
     set((state) => {
       const newShapes = state.shapes.filter((s) => s.id !== id);
-      // Save to localStorage only when not in a room
       if (state.roomId === null) {
         saveShapes(newShapes);
       } else {
-        // Send remove message to WebSocket
         wsManager.send({
           type: "shape_remove",
           roomId: state.roomId,
@@ -308,11 +294,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   addShape: (shape) =>
     set((state) => {
       const newShapes = [...state.shapes, shape];
-      // Save to localStorage only when not in a room
       if (state.roomId === null) {
         saveShapes(newShapes);
       } else {
-        // Send add message to WebSocket
         wsManager.send({
           type: "shape_add",
           roomId: state.roomId,
@@ -332,11 +316,9 @@ export const useEditorStore = create<EditorState>((set) => ({
         shape.id === id ? updater(shape) : shape,
       );
       const updatedShape = newShapes.find((s) => s.id === id);
-      // Save to localStorage only when not in a room
       if (state.roomId === null) {
         saveShapes(newShapes);
       } else if (updatedShape) {
-        // Send update message to WebSocket
         wsManager.send({
           type: "shape_update",
           roomId: state.roomId,
@@ -354,7 +336,6 @@ export const useEditorStore = create<EditorState>((set) => ({
       if (state.past.length === 0) return state;
       const previous = state.past[state.past.length - 1]!;
       const newShapes = cloneShapes(previous);
-      // Save to localStorage only when not in a room
       if (state.roomId === null) {
         saveShapes(newShapes);
       }
@@ -371,7 +352,6 @@ export const useEditorStore = create<EditorState>((set) => ({
       if (state.future.length === 0) return state;
       const next = state.future[0]!;
       const newShapes = cloneShapes(next);
-      // Save to localStorage only when not in a room
       if (state.roomId === null) {
         saveShapes(newShapes);
       }
@@ -385,11 +365,9 @@ export const useEditorStore = create<EditorState>((set) => ({
     }),
   loadShapesFromStorage: () =>
     set((state) => {
-      // Only load from storage if not in a room
       if (state.roomId !== null) return state;
       const loaded = loadShapes();
       if (loaded && Array.isArray(loaded) && loaded.length > 0) {
-        // Validate shapes have required properties
         const validShapes = loaded.filter(
           (shape): shape is Shape =>
             typeof shape === "object" &&
@@ -414,15 +392,11 @@ export const useEditorStore = create<EditorState>((set) => ({
     try {
       await wsManager.connect(roomId);
 
-      // Set up message handler
       wsManager.onMessage((message: ServerMessage) => {
         const state = useEditorStore.getState();
 
         switch (message.type) {
         case "room_joined":
-          // When joining a room, prefer existing room shapes.
-          // If the room is empty but we already have local shapes,
-          // push our local shapes up to the room instead of clearing them.
           if (message.roomId === roomId) {
             if (message.shapes.length > 0) {
               useEditorStore.setState({
@@ -431,7 +405,6 @@ export const useEditorStore = create<EditorState>((set) => ({
                 future: [],
               });
             } else if (state.shapes.length > 0) {
-              // Keep local shapes and sync them to the room
               wsManager.send({
                 type: "shapes_sync",
                 roomId: message.roomId,
@@ -442,7 +415,6 @@ export const useEditorStore = create<EditorState>((set) => ({
                 future: [],
               });
             } else {
-              // Both empty: keep empty state and reset history
               useEditorStore.setState({
                 shapes: [],
                 past: [],
@@ -453,7 +425,6 @@ export const useEditorStore = create<EditorState>((set) => ({
           break;
 
           case "shape_added":
-            // Add shape if not already present (avoid duplicates from our own actions)
             if (message.roomId === state.roomId) {
               const exists = state.shapes.some((s) => s.id === message.shape.id);
               if (!exists) {
@@ -476,7 +447,6 @@ export const useEditorStore = create<EditorState>((set) => ({
             break;
 
           case "shape_updated":
-            // Update shape if it exists
             if (message.roomId === state.roomId) {
               useEditorStore.setState({
                 shapes: state.shapes.map((s) =>
@@ -487,7 +457,6 @@ export const useEditorStore = create<EditorState>((set) => ({
             break;
 
           case "shape_removed":
-            // Remove shape if it exists
             if (message.roomId === state.roomId) {
               useEditorStore.setState({
                 shapes: state.shapes.filter((s) => s.id !== message.shapeId),
@@ -499,7 +468,6 @@ export const useEditorStore = create<EditorState>((set) => ({
             break;
 
           case "shapes_synced":
-            // Replace all shapes (full sync)
             if (message.roomId === state.roomId) {
               useEditorStore.setState({
                 shapes: message.shapes,
@@ -508,7 +476,6 @@ export const useEditorStore = create<EditorState>((set) => ({
             break;
 
         case "cursor_moved":
-          // Update cursor position for a user
           if (message.roomId === state.roomId) {
             const selfId =
               typeof window !== "undefined"
@@ -547,14 +514,12 @@ export const useEditorStore = create<EditorState>((set) => ({
             break;
 
           case "user_joined":
-            // User joined the room (we'll get their cursor when they move it)
             if (message.roomId === state.roomId) {
               console.log(`User ${message.username} joined the room`);
             }
             break;
 
           case "user_left":
-            // Remove cursor when user leaves
             if (message.roomId === state.roomId) {
               const newCursors = new Map(state.cursors);
               newCursors.delete(message.userId);
@@ -565,6 +530,7 @@ export const useEditorStore = create<EditorState>((set) => ({
           case "error":
             console.error("WebSocket error:", message.message);
             break;
+            
           case "room_settings_updated":
             if (message.roomId === state.roomId) {
               useEditorStore.setState({
@@ -584,7 +550,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   },
   disconnectWebSocket: () => {
     wsManager.disconnect();
-    // Clear cursors on disconnect
     useEditorStore.setState({ cursors: new Map() });
   },
   updateCursor: (userId: string, username: string, x: number, y: number) => {

@@ -16,7 +16,6 @@ export default function Home() {
       <Features />
       <Preview />
       <Workflow />
-      {/* <WhyDrawFlow /> */}
       <CallToAction />
       <Footer />
     </main>

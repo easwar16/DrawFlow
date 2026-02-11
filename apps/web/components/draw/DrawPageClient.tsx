@@ -149,17 +149,14 @@ export default function DrawPageClient() {
     setRoomId(roomIdFromParams);
 
     if (roomIdFromParams === null) {
-      // Disconnect WebSocket and load from localStorage
       disconnectWebSocket();
       loadShapesFromStorage();
     } else {
-      // Connect to WebSocket when joining a room (login-less service)
       connectWebSocket(roomIdFromParams).catch((error) => {
         console.error("Failed to connect WebSocket:", error);
       });
     }
 
-    // Cleanup: disconnect on unmount
     return () => {
       if (roomIdFromParams !== null) {
         disconnectWebSocket();
@@ -280,7 +277,6 @@ export default function DrawPageClient() {
               <DropdownMenuItem onSelect={() => setExportOpen(true)}>
                 <ImageIcon className="h-4 w-4" />
                 <span>Export image...</span>
-                <DropdownMenuShortcut>⌘⇧E</DropdownMenuShortcut>
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setShareOpen(true)}>
                 <Users className="h-4 w-4" />

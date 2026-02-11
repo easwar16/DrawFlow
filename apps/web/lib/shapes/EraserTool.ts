@@ -26,11 +26,10 @@ export class EraserTool implements ToolController {
 
     const { shapes, removeShape } = useEditorStore.getState();
 
-    // top-most first (important)
     for (const shape of [...shapes].reverse()) {
       if (hitTest(p, shape)) {
         removeShape(shape.id);
-        break; // erase one per frame (feels controlled)
+        break;
       }
     }
   }

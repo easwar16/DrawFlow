@@ -14,12 +14,10 @@ export function AuthCard() {
   return (
     <div className="w-full max-w-[420px] animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="bg-card rounded-2xl border border-border shadow-lg shadow-foreground/[0.02] p-8 md:p-10">
-        {/* Logo */}
         <div className="flex justify-center mb-8">
           <DrawFlowLogo />
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-1 p-1 bg-muted rounded-lg mb-8">
           <button
             type="button"
@@ -47,7 +45,6 @@ export function AuthCard() {
           </button>
         </div>
 
-        {/* Forms */}
         <div className="relative overflow-hidden">
           <div
             className={cn(
@@ -72,7 +69,6 @@ export function AuthCard() {
         </div>
       </div>
 
-      {/* Footer text */}
       <p className="text-center text-xs text-muted-foreground mt-6">
         By continuing, you agree to our{" "}
         <a href="#" className="text-primary hover:underline">

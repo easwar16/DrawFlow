@@ -80,12 +80,6 @@ export function Header() {
             >
               Preview
             </Link>
-            {/* <Link
-              href="#why"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Why DrawFlow
-            </Link> */}
           </nav>
 
           <div className="hidden md:flex items-center gap-4">

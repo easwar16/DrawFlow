@@ -37,7 +37,6 @@ export function CallToAction() {
           className={`relative rounded-3xl bg-foreground overflow-hidden transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}
         >
-          {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <svg
               className="h-full w-full"

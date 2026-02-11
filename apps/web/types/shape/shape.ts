@@ -17,10 +17,8 @@ export type Point = {
 export type LineShape = {
   id: string;
   type: "line";
-  points: Point[]; // start + end (for now)
+  points: Point[];
 };
-
-// export type Shape = RectangleShape | LineShape;
 
 export type ToolType =
   | "select"

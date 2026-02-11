@@ -59,7 +59,6 @@ export function Hero() {
     const animate = () => {
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
 
-      // Draw grid
       ctx.strokeStyle = "rgba(0, 0, 0, 0.03)";
       ctx.lineWidth = 1;
       const gridSize = 40;
@@ -78,7 +77,6 @@ export function Hero() {
         ctx.stroke();
       }
 
-      // Draw and update dots
       dots.forEach((dot) => {
         dot.x += dot.vx;
         dot.y += dot.vy;
@@ -92,7 +90,6 @@ export function Hero() {
         ctx.fill();
       });
 
-      // Draw connections between close dots
       ctx.strokeStyle = "rgba(34, 197, 94, 0.08)";
       ctx.lineWidth = 1;
       for (let i = 0; i < dots.length; i++) {

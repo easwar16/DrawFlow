@@ -24,7 +24,6 @@ export class CircleTool implements ToolController {
     const dx = p.x - this.start.x;
     const dy = p.y - this.start.y;
 
-    // const r = Math.hypot(dx, dy);
     const r = e.shiftKey
       ? Math.max(Math.abs(dx), Math.abs(dy))
       : Math.hypot(dx, dy);

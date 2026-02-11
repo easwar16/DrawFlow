@@ -57,19 +57,19 @@ export default function CanvasComponent() {
         manager.setActiveTool(new SelectTool());
         break;
       case "pencil":
-        manager.setActiveTool(new PencilTool()); // or SelectTool later
+        manager.setActiveTool(new PencilTool());
         break;
       case "circle":
-        manager.setActiveTool(new CircleTool()); // or SelectTool later
+        manager.setActiveTool(new CircleTool());
         break;
       case "line":
-        manager.setActiveTool(new LineTool()); // or SelectTool later
+        manager.setActiveTool(new LineTool());
         break;
       case "arrow":
-        manager.setActiveTool(new ArrowTool()); // or SelectTool later
+        manager.setActiveTool(new ArrowTool());
         break;
       case "rhombus":
-        manager.setActiveTool(new RhombusTool()); // or SelectTool later
+        manager.setActiveTool(new RhombusTool());
         break;
       case "eraser":
         manager.setActiveTool(new EraserTool());
@@ -95,13 +95,11 @@ export default function CanvasComponent() {
 
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  // 3. render on shape or cursor change
   useEffect(() => {
     CanvasManager.getInstance().render(shapes);
     console.log(shapes);
   }, [shapes, cursors]);
 
-  // 5. Track cursor movements and send via WebSocket
   useEffect(() => {
     if (!canvasRef.current || !roomId) return;
 
@@ -110,19 +108,16 @@ export default function CanvasComponent() {
     const selfId = selfCursorIdRef.current;
 
     const handlePointerMove = (e: PointerEvent) => {
-      // Convert screen coordinates to canvas coordinates
       const canvasPoint = manager.toCanvasPoint({
         clientX: e.clientX,
         clientY: e.clientY,
       } as PointerEvent);
 
-      // Throttle cursor updates (send max once per 50ms)
       if (cursorThrottleRef.current) {
         clearTimeout(cursorThrottleRef.current);
       }
 
       cursorThrottleRef.current = window.setTimeout(() => {
-        // Only send if position changed significantly (reduce network traffic)
         const lastPos = lastCursorUpdateRef.current;
         if (
           !lastPos ||
@@ -155,7 +150,6 @@ export default function CanvasComponent() {
     };
   }, [roomId]);
 
-  // 6. Clean up stale cursors (remove cursors that haven't updated in 3 seconds)
   useEffect(() => {
     if (!roomId) return;
 
@@ -167,7 +161,6 @@ export default function CanvasComponent() {
       let hasChanges = false;
       for (const [userId, cursor] of newCursors.entries()) {
         if (now - cursor.lastSeen > 3000) {
-          // 3 seconds timeout
           newCursors.delete(userId);
           hasChanges = true;
         }
@@ -176,7 +169,7 @@ export default function CanvasComponent() {
       if (hasChanges) {
         useEditorStore.setState({ cursors: newCursors });
       }
-    }, 1000); // Check every second
+    }, 1000);
 
     return () => clearInterval(cleanupInterval);
   }, [roomId]);

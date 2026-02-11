@@ -16,14 +16,12 @@ export function SignInForm({ onSwitchMode }: SignInFormProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate auth - replace with real auth logic
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsLoading(false);
   };
 
   return (
     <div>
-      {/* Header */}
       <div className="text-center mb-6">
         <h1 className="text-2xl font-semibold text-foreground mb-1">
           Welcome back
@@ -33,7 +31,6 @@ export function SignInForm({ onSwitchMode }: SignInFormProps) {
         </p>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="signin-email">Email</Label>
@@ -103,7 +100,6 @@ export function SignInForm({ onSwitchMode }: SignInFormProps) {
         </Button>
       </form>
 
-      {/* Switch mode link */}
       <p className="text-center text-sm text-muted-foreground mt-6">
         {"Don't have an account? "}
         <button

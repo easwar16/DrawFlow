@@ -134,7 +134,6 @@ class CanvasManager {
       this.panY = center.y - scale * (center.y - this.panY);
     }
 
-    // ✅ notify listeners
     this.zoomSubscribers.forEach((cb) => cb(this.zoom));
 
     this.render(useEditorStore.getState().shapes);
@@ -156,7 +155,6 @@ class CanvasManager {
   subscribeZoom(cb: (zoom: number) => void) {
     this.zoomSubscribers.add(cb);
 
-    // ✅ IMPORTANT: return a FUNCTION, not a boolean
     return () => {
       this.zoomSubscribers.delete(cb);
     };
@@ -597,10 +595,6 @@ class CanvasManager {
 
     for (const shape of finalShapes) {
       this.drawShape(shape);
-
-      // if (selectedShapeIds.includes(shape.id)) {
-      //   this.drawSelection(shape);
-      // }
     }
     if (!this.editingTextId && selectionBounds) {
       const showHandles =
@@ -623,7 +617,7 @@ class CanvasManager {
     if (this.draftRect) {
       this.ctx.save();
 
-      this.ctx.setLineDash([6, 4]); // dashed preview
+      this.ctx.setLineDash([6, 4]);
       this.ctx.strokeStyle = previewStroke;
 
       this.ctx.strokeRect(
@@ -638,7 +632,7 @@ class CanvasManager {
     if (this.draftRhom) {
       this.ctx.save();
 
-      this.ctx.setLineDash([6, 4]); // dashed preview
+      this.ctx.setLineDash([6, 4]);
       this.ctx.strokeStyle = previewStroke;
 
       this.ctx.beginPath();
@@ -696,8 +690,8 @@ class CanvasManager {
       this.draftArrow.startPoint &&
       this.draftArrow.endPoint
     ) {
-      const headLength = 12; // size of arrow head
-      const headAngle = Math.PI / 6; // 30°
+      const headLength = 12;
+      const headAngle = Math.PI / 6;
       const x1 = this.draftArrow.startPoint.x,
         x2 = this.draftArrow.endPoint.x,
         y1 = this.draftArrow.startPoint.y,
@@ -762,7 +756,6 @@ class CanvasManager {
       this.ctx.restore();
     }
 
-    // Render cursors on top of everything (after all draft shapes)
     this.renderCursors(Array.from(cursors.values()));
   }
 
@@ -890,8 +883,8 @@ class CanvasManager {
         break;
       case "arrow":
         this.drawWithSloppiness(shape, sloppiness, () => {
-          const headLength = 12; // size of arrow head
-          const headAngle = Math.PI / 6; // 30°
+          const headLength = 12;
+          const headAngle = Math.PI / 6;
           const x2 = shape.endPoint.x;
           const y2 = shape.endPoint.y;
           const control =
@@ -984,10 +977,9 @@ class CanvasManager {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
   private onPointerDown = (e: PointerEvent) => {
-    // 🖐 SPACE + CLICK → PAN
     if (this.isSpacePressed) {
       this.startPan(e);
-      return; // ⛔ DO NOT forward to active tool
+      return;
     }
 
     this.activeTool?.onPointerDown(e);
@@ -1164,7 +1156,6 @@ class CanvasManager {
 
     this.activeTool = tool;
 
-    // activate new tool
     this.activeTool?.onActivate?.(this.canvas);
   }
 
@@ -1470,12 +1461,8 @@ class CanvasManager {
   renderCursors(cursors: Array<{ userId: string; username: string; x: number; y: number }>) {
     if (!this.canvas || !this.ctx || cursors.length === 0) return;
 
-    // Render cursors on top of everything
-    // Note: This is called after ctx.restore(), so we're in screen space
-    // We need to apply the transform manually for cursor rendering
     this.ctx.save();
-    
-    // Apply the same transform as the main render
+
     this.ctx.setTransform(
       this.dpr * this.zoom,
       0,
@@ -1509,14 +1496,12 @@ class CanvasManager {
     const selfCursorId =
       typeof window !== "undefined" ? sessionStorage.getItem("drawflow:cursorId") : null;
 
-    // Cursors are in canvas coordinates, so we can draw them directly
     for (const cursor of cursors) {
       if (selfCursorId && cursor.userId === selfCursorId) {
         continue;
       }
 
       const color = getCursorColor(cursor.userId ?? cursor.username ?? "user");
-      // Draw cursor pointer (mouse arrow)
       const s = 8.5 / this.zoom;
       const x = cursor.x;
       const y = cursor.y;
@@ -1535,7 +1520,6 @@ class CanvasManager {
       this.ctx.fill();
       this.ctx.stroke();
 
-      // Draw username below cursor
       this.ctx.font = `${12 / this.zoom}px sans-serif`;
       this.ctx.textAlign = "center";
       this.ctx.textBaseline = "top";
@@ -1547,7 +1531,6 @@ class CanvasManager {
       const gap = 2 / this.zoom;
       const labelTop = cursor.y + s * 2.2 + gap;
 
-      // Draw background rectangle for text
       this.ctx.fillStyle = "#ffffff";
       this.ctx.strokeStyle = "#e5e7eb";
       this.ctx.lineWidth = 1 / this.zoom;
@@ -1564,7 +1547,6 @@ class CanvasManager {
         textHeight + padding
       );
 
-      // Draw text
       this.ctx.fillStyle = color;
       this.ctx.fillText(cursor.username, cursor.x, labelTop + padding / 2);
     }

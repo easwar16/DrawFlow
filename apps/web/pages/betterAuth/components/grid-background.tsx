@@ -1,7 +1,6 @@
 export function GridBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
-      {/* Subtle hand-drawn style grid */}
       <svg
         className="absolute inset-0 h-full w-full"
         xmlns="http://www.w3.org/2000/svg"
@@ -25,7 +24,6 @@ export function GridBackground() {
         <rect width="100%" height="100%" fill="url(#grid)" />
       </svg>
 
-      {/* Subtle decorative elements */}
       <svg
         className="absolute top-20 left-10 w-16 h-16 text-foreground/[0.03]"
         viewBox="0 0 100 100"
