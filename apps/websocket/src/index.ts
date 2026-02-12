@@ -8,18 +8,9 @@ const redisClient = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-redisClient.on("error", (err: Error) => {
-  console.error("Redis Client Error:", err.message);
-  console.warn("Make sure Redis is running. You can start it with: docker run -d -p 6379:6379 redis");
-});
+redisClient.on("error", () => {});
 
-redisClient.on("connect", () => console.log("Redis Client Connected"));
-redisClient.on("ready", () => console.log("Redis Client Ready"));
-
-redisClient.connect().catch((err: Error) => {
-  console.error("Failed to connect to Redis:", err.message);
-  console.warn("WebSocket server will continue but shape persistence won't work until Redis is available");
-});
+redisClient.connect().catch(() => {});
 
 interface User {
   ws: WebSocket;
@@ -38,7 +29,6 @@ const wss = new WebSocketServer({ port: 8080 });
 
 wss.on("connection", (socket, Request) => {
   const userId = generateUserId();
-  console.log(`New WebSocket connection: ${userId}`);
 
   Users.push({ rooms: [], userId: userId, ws: socket, username: "Anonymous" });
 
@@ -72,7 +62,6 @@ wss.on("connection", (socket, Request) => {
         try {
           const shapesKey = `room:${parsedData.roomId}:shapes`;
           if (!redisClient.isOpen) {
-            console.warn("Redis not connected, sending empty shapes");
             socket.send(
               JSON.stringify({
                 type: "room_joined",
@@ -105,8 +94,7 @@ wss.on("connection", (socket, Request) => {
               })
             );
           }
-        } catch (error) {
-          console.error("Error loading shapes from Redis:", error);
+        } catch {
           socket.send(
             JSON.stringify({
               type: "room_joined",
@@ -152,8 +140,8 @@ wss.on("connection", (socket, Request) => {
         if (redisClient.isOpen) {
           try {
             await redisClient.set(settingsKey, JSON.stringify(parsedData.settings));
-          } catch (error) {
-            console.error("Error saving room settings:", error);
+          } catch {
+            // Settings not persisted when Redis fails
           }
         }
         broadcastToRoom(parsedData.roomId, {
@@ -196,8 +184,7 @@ wss.on("connection", (socket, Request) => {
           );
         }
       }
-    } catch (error) {
-      console.error("Error processing message:", error);
+    } catch {
       socket.send(
         JSON.stringify({
           type: "error",
@@ -241,7 +228,6 @@ function broadcastToRoom(roomId: string, message: object, excludeSocket?: WebSoc
 async function handleShapeAdd(roomId: string, shape: unknown) {
   try {
     if (!redisClient.isOpen) {
-      console.warn("Redis not connected, shape not persisted but broadcasting");
       broadcastToRoom(roomId, {
         type: "shape_added",
         roomId,
@@ -263,8 +249,7 @@ async function handleShapeAdd(roomId: string, shape: unknown) {
       roomId,
       shape,
     });
-  } catch (error) {
-    console.error("Error adding shape:", error);
+  } catch {
     broadcastToRoom(roomId, {
       type: "shape_added",
       roomId,
@@ -276,7 +261,6 @@ async function handleShapeAdd(roomId: string, shape: unknown) {
 async function handleShapeUpdate(roomId: string, shape: unknown) {
   try {
     if (!redisClient.isOpen) {
-      console.warn("Redis not connected, shape not persisted but broadcasting");
       broadcastToRoom(roomId, {
         type: "shape_updated",
         roomId,
@@ -306,8 +290,7 @@ async function handleShapeUpdate(roomId: string, shape: unknown) {
       roomId,
       shape,
     });
-  } catch (error) {
-    console.error("Error updating shape:", error);
+  } catch {
     broadcastToRoom(roomId, {
       type: "shape_updated",
       roomId,
@@ -319,7 +302,6 @@ async function handleShapeUpdate(roomId: string, shape: unknown) {
 async function handleShapeRemove(roomId: string, shapeId: string) {
   try {
     if (!redisClient.isOpen) {
-      console.warn("Redis not connected, shape not persisted but broadcasting");
       broadcastToRoom(roomId, {
         type: "shape_removed",
         roomId,
@@ -343,8 +325,7 @@ async function handleShapeRemove(roomId: string, shapeId: string) {
       roomId,
       shapeId,
     });
-  } catch (error) {
-    console.error("Error removing shape:", error);
+  } catch {
     broadcastToRoom(roomId, {
       type: "shape_removed",
       roomId,
@@ -356,7 +337,6 @@ async function handleShapeRemove(roomId: string, shapeId: string) {
 async function handleShapesSync(roomId: string, shapes: unknown[]) {
   try {
     if (!redisClient.isOpen) {
-      console.warn("Redis not connected, shapes not persisted but broadcasting");
       broadcastToRoom(roomId, {
         type: "shapes_synced",
         roomId,
@@ -374,8 +354,7 @@ async function handleShapesSync(roomId: string, shapes: unknown[]) {
       roomId,
       shapes,
     });
-  } catch (error) {
-    console.error("Error syncing shapes:", error);
+  } catch {
     broadcastToRoom(roomId, {
       type: "shapes_synced",
       roomId,
