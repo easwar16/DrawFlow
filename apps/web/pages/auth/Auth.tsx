@@ -6,11 +6,19 @@ import { redirect } from "next/navigation";
 import axios from "axios";
 import { CheckCircle2Icon, Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-  userSigninSchema,
-  userSigninType,
-  userSignupSchema,
-} from "@repo/backend-common/zod";
+import { z } from "zod";
+
+const userSigninSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const userSignupSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  name: z.string().min(1, "Name is required"),
+  photo: z.string().optional(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ButtonGroup } from "@/components/ui/button-group";
