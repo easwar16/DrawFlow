@@ -4,9 +4,7 @@ A modern, web-based drawing app for visualizing ideas with an infinite canvas, h
 
 <div align="center">
 
-https://github.com/user-attachments/assets/drawflow.mp4
-
-<video src="apps/web/public/drawflow.mp4" controls width="800"></video>
+https://github.com/user-attachments/assets/a2b3011f-3b12-4a2b-b92e-4d9f9c505d21
 
 </div>
 
